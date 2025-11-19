@@ -17,6 +17,14 @@
 namespace esphome {
 namespace uyat {
 
+enum UyatNetworkStatus: uint8_t {
+  SMARTCONFIG = 0x00,
+  AP_MODE = 0x01,
+  WIFI_CONFIGURED = 0x02,
+  WIFI_CONNECTED = 0x03,
+  CLOUD_CONNECTED = 0x04,
+};
+
 enum UyatDatapointType {
   RAW = 0x00,      // variable length
   BOOLEAN = 0x01,  // 1 byte (0/1)
@@ -136,9 +144,10 @@ class Uyat : public Component, public uart::UARTDevice {
   void set_raw_datapoint_value_(uint8_t datapoint_id, const std::vector<uint8_t> &value, bool forced);
   void send_datapoint_command_(uint8_t datapoint_id, UyatDatapointType datapoint_type, std::vector<uint8_t> data);
   void set_status_pin_();
-  void send_wifi_status_();
-  uint8_t get_wifi_status_code_();
+  void send_wifi_status_(const uint8_t status);
   uint8_t get_wifi_rssi_();
+  void report_wifi_connected_or_retry_(const uint32_t delay_ms);
+  void query_product_info_with_retries_();
 
 #ifdef USE_TIME
   void send_local_time_();
@@ -161,7 +170,8 @@ class Uyat : public Component, public uart::UARTDevice {
   std::vector<uint8_t> ignore_mcu_update_on_datapoints_{};
   std::vector<UyatCommand> command_queue_;
   optional<UyatCommandType> expected_response_{};
-  uint8_t wifi_status_ = -1;
+  UyatNetworkStatus wifi_status_{UyatNetworkStatus::WIFI_CONFIGURED};
+  optional<bool> requested_wifi_config_is_ap_{};
   CallbackManager<void()> initialized_callback_{};
 };
 

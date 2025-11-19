@@ -185,7 +185,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     }
     if (this->init_state_ == UyatInitState::INIT_HEARTBEAT) {
       this->init_state_ = UyatInitState::INIT_PRODUCT;
-      this->send_empty_command_(UyatCommandType::PRODUCT_QUERY);
+      this->query_product_info_with_retries_();
     }
     break;
   case UyatCommandType::PRODUCT_QUERY: {
@@ -202,6 +202,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     } else {
       this->product_ = R"({"p":"INVALID"})";
     }
+
     if (this->init_state_ == UyatInitState::INIT_PRODUCT) {
       this->init_state_ = UyatInitState::INIT_CONF;
       this->send_empty_command_(UyatCommandType::CONF_QUERY);
@@ -233,48 +234,75 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
                    this->status_pin_reported_);
         }
       } else {
+
         this->init_state_ = UyatInitState::INIT_WIFI;
-        ESP_LOGV(TAG, "Configured WIFI_STATE periodic send");
-        this->set_interval("wifi", 1000, [this] { this->send_wifi_status_(); });
+        if (this->requested_wifi_config_is_ap_.has_value())
+        {
+          if (this->requested_wifi_config_is_ap_.value())
+          {
+            this->wifi_status_ = UyatNetworkStatus::AP_MODE;
+          }
+          else
+          {
+            this->wifi_status_ = UyatNetworkStatus::SMARTCONFIG;
+          }
+        }
+        else
+        {
+          this->wifi_status_ = UyatNetworkStatus::WIFI_CONFIGURED;
+        }
+        this->requested_wifi_config_is_ap_.reset();
+
+        this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
       }
     }
     break;
   }
   case UyatCommandType::WIFI_STATE:
     if (this->init_state_ == UyatInitState::INIT_WIFI) {
-      this->init_state_ = UyatInitState::INIT_DATAPOINT;
-      this->send_empty_command_(UyatCommandType::DATAPOINT_QUERY);
+      if ((this->wifi_status_ == UyatNetworkStatus::SMARTCONFIG) || (this->wifi_status_ == UyatNetworkStatus::AP_MODE))
+      {
+        this->wifi_status_ = UyatNetworkStatus::WIFI_CONFIGURED;
+        this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
+      }
+      else if (this->wifi_status_ == UyatNetworkStatus::WIFI_CONFIGURED)
+      {
+        this->report_wifi_connected_or_retry_(100u);
+      }
+      else if (this->wifi_status_ == UyatNetworkStatus::WIFI_CONNECTED)
+      {
+        this->wifi_status_ = UyatNetworkStatus::CLOUD_CONNECTED;
+        this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
+      }
+      else if (this->wifi_status_ == UyatNetworkStatus::CLOUD_CONNECTED)
+      {
+        this->init_state_ = UyatInitState::INIT_DATAPOINT;
+        this->send_empty_command_(UyatCommandType::DATAPOINT_QUERY);
+      }
     }
     break;
   case UyatCommandType::WIFI_RESET:
+  {
+    ESP_LOGI(TAG, "WIFI_RESET");
+    this->init_state_ = UyatInitState::INIT_PRODUCT;
+    this->send_empty_command_(UyatCommandType::WIFI_RESET);
+    this->query_product_info_with_retries_();
+    break;
+  }
   case UyatCommandType::WIFI_SELECT: {
-      const bool is_select = (len >= 1);
-      // Send WIFI_SELECT ACK
-      UyatCommand ack;
-      ack.cmd = is_select ? UyatCommandType::WIFI_SELECT : UyatCommandType::WIFI_RESET;
-      ack.payload.clear();
-      this->send_command_(ack);
-      // Establish pairing mode for correct first WIFI_STATE byte, EZ (0x00) default
-      uint8_t first = 0x00;
-      const char *mode_str = "EZ";
-      if (is_select && buffer[0] == 0x01) {
-        first = 0x01;
-        mode_str = "AP";
+      ESP_LOGI(TAG, "WIFI_SELECT");
+      if (len > 0)
+      {
+        this->requested_wifi_config_is_ap_ = (buffer[0] == 0x01);
       }
-      // Send WIFI_STATE response, MCU exits pairing mode
-      UyatCommand st;
-      st.cmd = UyatCommandType::WIFI_STATE;
-      st.payload.resize(1);
-      st.payload[0] = first;
-      this->send_command_(st);
-      st.payload[0] = 0x02;
-      this->send_command_(st);
-      st.payload[0] = 0x03;
-      this->send_command_(st);
-      st.payload[0] = 0x04;
-      this->send_command_(st);
-      ESP_LOGI(TAG, "%s received (%s), replied with WIFI_STATE confirming connection established",
-               is_select ? "WIFI_SELECT" : "WIFI_RESET", mode_str);
+      else
+      {
+        this->requested_wifi_config_is_ap_ = 0x00;  // SMARTCONFIG
+      }
+
+      this->init_state_ = UyatInitState::INIT_PRODUCT;
+      this->send_empty_command_(UyatCommandType::WIFI_SELECT);
+      this->query_product_info_with_retries_();
       break;
     }
   case UyatCommandType::DATAPOINT_DELIVER:
@@ -333,12 +361,10 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
              "Vacuum map upload requested, responding that it is not enabled.");
     break;
   case UyatCommandType::GET_NETWORK_STATUS: {
-    uint8_t wifi_status = this->get_wifi_status_code_();
-
     this->send_command_(
         UyatCommand{.cmd = UyatCommandType::GET_NETWORK_STATUS,
-                    .payload = std::vector<uint8_t>{wifi_status}});
-    ESP_LOGV(TAG, "Network status requested, reported as %i", wifi_status);
+                    .payload = std::vector<uint8_t>{this->wifi_status_}});
+    ESP_LOGV(TAG, "Network status requested, reported as %i", this->wifi_status_);
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
@@ -585,28 +611,10 @@ void Uyat::set_status_pin_() {
   this->status_pin_->digital_write(is_network_ready);
 }
 
-uint8_t Uyat::get_wifi_status_code_() {
-  uint8_t status = NET_STATUS_WIFI_CONNECTED;
-
-  // Protocol version 3 also supports specifying when connected to "the cloud"
-  if (this->protocol_version_ >= 0x03) {
-    status = NET_STATUS_CLOUD_CONNECTED;
-  }
-
-  return status;
-}
-
 uint8_t Uyat::get_wifi_rssi_() { return FAKE_WIFI_RSSI; }
 
-void Uyat::send_wifi_status_() {
-  uint8_t status = this->get_wifi_status_code_();
-
-  if (status == this->wifi_status_) {
-    return;
-  }
-
-  ESP_LOGD(TAG, "Sending WiFi Status");
-  this->wifi_status_ = status;
+void Uyat::send_wifi_status_(const uint8_t status) {
+  ESP_LOGD(TAG, "Sending WiFi Status %d", status);
   this->send_command_(UyatCommand{.cmd = UyatCommandType::WIFI_STATE,
                                   .payload = std::vector<uint8_t>{status}});
 }
@@ -817,6 +825,38 @@ void Uyat::register_listener(uint8_t datapoint_id,
 }
 
 UyatInitState Uyat::get_init_state() { return this->init_state_; }
+
+void Uyat::report_wifi_connected_or_retry_(const uint32_t delay_ms)
+{
+  if (esphome::network::is_connected())
+  {
+    this->wifi_status_ = UyatNetworkStatus::WIFI_CONNECTED;
+    this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
+  }
+  else
+  {
+    ESP_LOGI(TAG, "WiFi not connected yet, will retry...");
+    this->set_timeout("wifi_status", delay_ms, [this, delay_ms] {
+      this->report_wifi_connected_or_retry_(delay_ms);
+    });
+  }
+}
+
+void Uyat::query_product_info_with_retries_()
+{
+  this->cancel_timeout("wifi_status");
+  this->cancel_timeout("product");
+  if (this->init_state_ != UyatInitState::INIT_PRODUCT)
+  {
+    return;
+  }
+
+  this->send_empty_command_(UyatCommandType::PRODUCT_QUERY);
+  this->set_timeout("product", 2000, [this] {
+      ESP_LOGW(TAG, "No response to PRODUCT_QUERY, retrying...");
+      this->query_product_info_with_retries_();
+    });
+}
 
 } // namespace uyat
 } // namespace esphome

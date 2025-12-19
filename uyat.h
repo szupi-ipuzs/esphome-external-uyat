@@ -71,12 +71,14 @@ enum class UyatCommandType : uint8_t {
   WIFI_RSSI = 0x24,
   VACUUM_MAP_UPLOAD = 0x28,
   GET_NETWORK_STATUS = 0x2B,
+  GE_MAC_ADDRESS = 0x2D,
   EXTENDED_SERVICES = 0x34,
 };
 
 enum class UyatExtendedServicesCommandType : uint8_t {
   RESET_NOTIFICATION = 0x04,
   MODULE_RESET = 0x05,
+  GET_MODULE_INFORMATION = 0x07,
   UPDATE_IN_PROGRESS = 0x0A,
 };
 
@@ -147,7 +149,9 @@ class Uyat : public Component, public uart::UARTDevice {
   void send_wifi_status_(const uint8_t status);
   uint8_t get_wifi_rssi_();
   void report_wifi_connected_or_retry_(const uint32_t delay_ms);
+  void report_cloud_connected_();
   void query_product_info_with_retries_();
+  std::string process_get_module_information_(const uint8_t *buffer, size_t len);
 
 #ifdef USE_TIME
   void send_local_time_();

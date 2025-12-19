@@ -5,8 +5,7 @@
 #include "esphome/core/log.h"
 #include "esphome/core/util.h"
 
-namespace esphome {
-namespace uyat {
+namespace esphome::uyat {
 
 static const char *const TAG = "uyat";
 static const int COMMAND_DELAY = 10;
@@ -62,7 +61,6 @@ void Uyat::dump_config() {
     }
     ESP_LOGCONFIG(TAG, "  If no further output is received, confirm that this "
                        "is a supported Uyat device.");
-    return;
   }
   for (auto &info : this->datapoints_) {
     if (info.type == UyatDatapointType::RAW) {
@@ -87,12 +85,15 @@ void Uyat::dump_config() {
       ESP_LOGCONFIG(TAG, "  Datapoint %u: unknown", info.id);
     }
   }
-  if ((this->status_pin_reported_ != -1) || (this->reset_pin_reported_ != -1)) {
-    ESP_LOGCONFIG(TAG, "  GPIO Configuration: status: pin %d, reset: pin %d",
-                  this->status_pin_reported_, this->reset_pin_reported_);
+
+  if (this->init_state_ > UyatInitState::INIT_CONF) {
+    if ((this->status_pin_reported_ != -1) || (this->reset_pin_reported_ != -1)) {
+      ESP_LOGCONFIG(TAG, "  GPIO Configuration: status: pin %d, reset: pin %d",
+                    this->status_pin_reported_, this->reset_pin_reported_);
+    }
+    LOG_PIN("  Status Pin: ", this->status_pin_);
+    ESP_LOGCONFIG(TAG, "  Product: '%s'", this->product_.c_str());
   }
-  LOG_PIN("  Status Pin: ", this->status_pin_);
-  ESP_LOGCONFIG(TAG, "  Product: '%s'", this->product_.c_str());
 }
 
 std::size_t Uyat::validate_message_() {
@@ -254,6 +255,12 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
         this->requested_wifi_config_is_ap_.reset();
 
         this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
+        this->wifi_status_ = UyatNetworkStatus::WIFI_CONNECTED;
+        this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
+        this->wifi_status_ = UyatNetworkStatus::CLOUD_CONNECTED;
+        this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
+        this->init_state_ = UyatInitState::INIT_DATAPOINT;
+        this->send_empty_command_(UyatCommandType::DATAPOINT_QUERY);
       }
     }
     break;
@@ -265,7 +272,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
         this->wifi_status_ = UyatNetworkStatus::WIFI_CONFIGURED;
         this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
       }
-      else if (this->wifi_status_ == UyatNetworkStatus::WIFI_CONFIGURED)
+
+      if (this->wifi_status_ == UyatNetworkStatus::WIFI_CONFIGURED)
       {
         this->report_wifi_connected_or_retry_(100u);
       }
@@ -367,6 +375,16 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     ESP_LOGV(TAG, "Network status requested, reported as %i", this->wifi_status_);
     break;
   }
+  case UyatCommandType::GE_MAC_ADDRESS: {
+    uint8_t mac[6];
+    get_mac_address_raw(mac);
+    this->send_command_(
+        UyatCommand{.cmd = UyatCommandType::GE_MAC_ADDRESS,
+                    .payload = std::vector<uint8_t>(mac, mac + 6)});
+    ESP_LOGV(TAG, "MAC address requested, reported as %s",
+              format_hex_pretty(std::vector<uint8_t>(mac, mac + 6)).c_str());
+    break;
+  }
   case UyatCommandType::EXTENDED_SERVICES: {
     uint8_t subcommand = buffer[0];
     switch ((UyatExtendedServicesCommandType)subcommand) {
@@ -386,6 +404,33 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     }
     case UyatExtendedServicesCommandType::UPDATE_IN_PROGRESS: {
       ESP_LOGE(TAG, "EXTENDED_SERVICES::UPDATE_IN_PROGRESS is not handled");
+      break;
+    }
+    case UyatExtendedServicesCommandType::GET_MODULE_INFORMATION: {
+      std::vector<uint8_t> response_payload;
+      std::string module_info_str;
+      response_payload.push_back(static_cast<uint8_t>(
+                  UyatExtendedServicesCommandType::GET_MODULE_INFORMATION));
+      if (len >= 2)
+      {
+        module_info_str = process_get_module_information_(&buffer[1], len - 1);
+      }
+
+      if (module_info_str.empty())
+      {
+        response_payload.push_back(0x01);  // failure
+      }
+      else
+      {
+        response_payload.push_back(0x00);  // success
+        response_payload.insert(response_payload.end(),
+                                module_info_str.begin(),
+                                module_info_str.end());
+      }
+
+      send_raw_command_(UyatCommand{
+          .cmd = UyatCommandType::EXTENDED_SERVICES,
+          .payload = response_payload});
       break;
     }
     default:
@@ -832,6 +877,9 @@ void Uyat::report_wifi_connected_or_retry_(const uint32_t delay_ms)
   {
     this->wifi_status_ = UyatNetworkStatus::WIFI_CONNECTED;
     this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
+    this->set_timeout("wifi_status", 100, [this] {
+      this->report_cloud_connected_();
+    });
   }
   else
   {
@@ -840,6 +888,16 @@ void Uyat::report_wifi_connected_or_retry_(const uint32_t delay_ms)
       this->report_wifi_connected_or_retry_(delay_ms);
     });
   }
+}
+
+void Uyat::report_cloud_connected_()
+{
+  if (this->init_state_ != UyatInitState::INIT_WIFI)
+  {
+    return;
+  }
+  this->wifi_status_ = UyatNetworkStatus::CLOUD_CONNECTED;
+  this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
 }
 
 void Uyat::query_product_info_with_retries_()
@@ -858,5 +916,77 @@ void Uyat::query_product_info_with_retries_()
     });
 }
 
-} // namespace uyat
-} // namespace esphome
+std::string Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
+{
+  // By default, we return an empty string indicating failure
+  bool want_ssid = false;
+  bool want_country_code = false;
+  bool want_sn = false;
+
+  if (len == 0)
+  {
+    return {};
+  }
+
+  if (buffer[0] == 0xFF) // special case: get all information
+  {
+    want_ssid = true;
+    want_country_code = true;
+    want_sn = true;
+  }
+  else
+  {
+    for (size_t i = 0; i < len; i++)
+    {
+      switch (buffer[i])
+      {
+        case 0x01:
+          want_ssid = true;
+          break;
+        case 0x02:
+          want_country_code = true;
+          break;
+        case 0x03:
+          want_sn = true;
+          break;
+        default:
+          ESP_LOGW(TAG, "Unknown GET_MODULE_INFORMATION request field 0x%02X",
+                   buffer[i]);
+      }
+    }
+  }
+
+  if (!want_ssid && !want_country_code && !want_sn)
+  {
+    return {};
+  }
+
+  std::string module_info_str = "{";
+
+  if (want_ssid)
+  {
+    module_info_str += "\"ap:\":\"smartlife\"";
+  }
+  if (want_country_code)
+  {
+    if (module_info_str.length() > 1)
+    {
+      module_info_str.push_back(',');
+    }
+    module_info_str += "\"cc\":\"0\"";  // 0 means China
+  }
+  if (want_sn)
+  {
+    if (module_info_str.length() > 1)
+    {
+      module_info_str.push_back(',');
+    }
+    module_info_str += "\"sn\":\"1234567890\"";
+  }
+
+  module_info_str.push_back('}');
+
+  return module_info_str;
+}
+
+} // namespace esphome::uyat

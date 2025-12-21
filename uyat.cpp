@@ -18,9 +18,7 @@ static const uint8_t FAKE_WIFI_RSSI = 100;
 static const uint64_t UART_MAX_POLL_TIME_MS = 50;
 
 void Uyat::setup() {
-  this->set_interval("heartbeat", 15000, [this] {
-    this->send_empty_command_(UyatCommandType::HEARTBEAT);
-  });
+  schedule_heartbeat_(true);
   if (this->status_pin_ != nullptr) {
     this->status_pin_->digital_write(false);
   }
@@ -182,8 +180,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     this->protocol_version_ = version;
     if (buffer[0] == 0) {
       ESP_LOGI(TAG, "MCU restarted");
-      this->init_state_ = UyatInitState::INIT_HEARTBEAT;
     }
+    schedule_heartbeat_(false);
     if (this->init_state_ == UyatInitState::INIT_HEARTBEAT) {
       this->init_state_ = UyatInitState::INIT_PRODUCT;
       this->query_product_info_with_retries_();
@@ -294,6 +292,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     ESP_LOGI(TAG, "WIFI_RESET");
     this->init_state_ = UyatInitState::INIT_PRODUCT;
     this->send_empty_command_(UyatCommandType::WIFI_RESET);
+    this->schedule_heartbeat_(true);
     this->query_product_info_with_retries_();
     break;
   }
@@ -310,6 +309,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
 
       this->init_state_ = UyatInitState::INIT_PRODUCT;
       this->send_empty_command_(UyatCommandType::WIFI_SELECT);
+      this->schedule_heartbeat_(true);
       this->query_product_info_with_retries_();
       break;
     }
@@ -343,6 +343,10 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
         UyatCommand{.cmd = UyatCommandType::WIFI_RSSI,
                     .payload = std::vector<uint8_t>{get_wifi_rssi_()}});
     break;
+  case UyatCommandType::DISABLE_HEARTBEATS:
+    stop_heartbeats_();
+    ESP_LOGI(TAG, "Heartbeats disabled by MCU");
+    break;
   case UyatCommandType::LOCAL_TIME_QUERY:
 #ifdef USE_TIME
     if (this->time_id_ != nullptr) {
@@ -375,14 +379,14 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     ESP_LOGV(TAG, "Network status requested, reported as %i", this->wifi_status_);
     break;
   }
-  case UyatCommandType::GE_MAC_ADDRESS: {
-    uint8_t mac[6];
-    get_mac_address_raw(mac);
+  case UyatCommandType::GET_MAC_ADDRESS: {
+    std::vector<uint8_t> mac(6u);
+    get_mac_address_raw(mac.data());
     this->send_command_(
-        UyatCommand{.cmd = UyatCommandType::GE_MAC_ADDRESS,
-                    .payload = std::vector<uint8_t>(mac, mac + 6)});
+        UyatCommand{.cmd = UyatCommandType::GET_MAC_ADDRESS,
+                    .payload = mac});
     ESP_LOGV(TAG, "MAC address requested, reported as %s",
-              format_hex_pretty(std::vector<uint8_t>(mac, mac + 6)).c_str());
+              format_hex_pretty(mac).c_str());
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
@@ -987,6 +991,25 @@ std::string Uyat::process_get_module_information_(const uint8_t *buffer, size_t 
   module_info_str.push_back('}');
 
   return module_info_str;
+}
+
+void Uyat::schedule_heartbeat_(const bool initial)
+{
+  const uint32_t delay_ms = initial ? 1000u : 15000u;
+  this->cancel_interval("heartbeat");
+  this->heartbeats_enabled_ = true;
+  this->set_interval("heartbeat", delay_ms, [this] {
+    if (this->heartbeats_enabled_)
+    {
+      this->send_empty_command_(UyatCommandType::HEARTBEAT);
+    }
+  });
+}
+
+void Uyat::stop_heartbeats_()
+{
+  this->cancel_interval("heartbeat");
+  this->heartbeats_enabled_ = false;
 }
 
 } // namespace esphome::uyat

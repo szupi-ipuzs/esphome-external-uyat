@@ -69,9 +69,10 @@ enum class UyatCommandType : uint8_t {
   DATAPOINT_REPORT_SYNC = 0x22,
   DATAPOINT_REPORT_ACK = 0x23,
   WIFI_RSSI = 0x24,
+  DISABLE_HEARTBEATS = 0x25,
   VACUUM_MAP_UPLOAD = 0x28,
   GET_NETWORK_STATUS = 0x2B,
-  GE_MAC_ADDRESS = 0x2D,
+  GET_MAC_ADDRESS = 0x2D,
   EXTENDED_SERVICES = 0x34,
 };
 
@@ -152,6 +153,8 @@ class Uyat : public Component, public uart::UARTDevice {
   void report_cloud_connected_();
   void query_product_info_with_retries_();
   std::string process_get_module_information_(const uint8_t *buffer, size_t len);
+  void schedule_heartbeat_(const bool initial);
+  void stop_heartbeats_();
 
 #ifdef USE_TIME
   void send_local_time_();
@@ -160,6 +163,7 @@ class Uyat : public Component, public uart::UARTDevice {
 #endif
   UyatInitState init_state_ = UyatInitState::INIT_HEARTBEAT;
   bool init_failed_{false};
+  bool heartbeats_enabled_{true};
   int init_retries_{0};
   uint8_t protocol_version_ = -1;
   InternalGPIOPin *status_pin_{nullptr};

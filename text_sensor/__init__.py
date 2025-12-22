@@ -22,6 +22,9 @@ CONFIG_SCHEMA = (
     .extend(cv.COMPONENT_SCHEMA)
 )
 
+async def create_diag_text_sensor(config):
+    sens = await text_sensor.new_text_sensor(config)
+    return sens
 
 async def to_code(config):
     var = await text_sensor.new_text_sensor(config)

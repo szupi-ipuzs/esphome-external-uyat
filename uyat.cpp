@@ -4,6 +4,10 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include "esphome/core/util.h"
+#include <span>
+#include <ranges>
+#include <sstream>
+#include <iomanip>
 
 namespace esphome::uyat {
 
@@ -17,11 +21,48 @@ static const uint8_t NET_STATUS_CLOUD_CONNECTED = 0x04;
 static const uint8_t FAKE_WIFI_RSSI = 100;
 static const uint64_t UART_MAX_POLL_TIME_MS = 50;
 
+std::string cmd_ids_to_string(const std::set<uint8_t>& data) {
+    std::stringstream ss;
+    ss << '[' << std::hex << std::setfill('0');
+
+    for (const auto &x: data)
+    {
+      ss << static_cast<int>(x) << ',';
+    }
+
+    ss << ']';
+
+    return ss.str();
+}
+
 void Uyat::setup() {
   schedule_heartbeat_(true);
   if (this->status_pin_ != nullptr) {
     this->status_pin_->digital_write(false);
   }
+
+  if (this->num_garbage_bytes_sensor_)
+  {
+    this->set_interval("num_garbage_bytes", 1000, [this]{
+      this->num_garbage_bytes_sensor_->publish_state(this->num_garbage_bytes_);
+    });
+  }
+
+  this->defer([this]{
+    if (this->unknown_commands_text_sensor_)
+    {
+      const auto cmd_ids = cmd_ids_to_string(this->unknown_commands_set_);
+      this->unknown_commands_text_sensor_->publish_state(cmd_ids);
+    }
+
+    if (this->unknown_extended_commands_text_sensor_)
+    {
+      const auto cmd_ids = cmd_ids_to_string(this->unknown_extended_commands_set_);
+      this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids);
+    }
+
+    update_pairing_mode_();
+  });
 }
 
 void Uyat::loop() {
@@ -60,7 +101,7 @@ void Uyat::dump_config() {
     ESP_LOGCONFIG(TAG, "  If no further output is received, confirm that this "
                        "is a supported Uyat device.");
   }
-  for (auto &info : this->datapoints_) {
+  for (const auto &info : this->datapoints_) {
     if (info.type == UyatDatapointType::RAW) {
       ESP_LOGCONFIG(TAG, "  Datapoint %u: raw (value: %s)", info.id,
                     format_hex_pretty(info.value_raw).c_str());
@@ -159,6 +200,10 @@ void Uyat::handle_input_buffer_() {
       bytes_to_remove = this->rx_message_.size();
     }
 
+    if (bytes_to_remove <= 1u)
+    {
+      this->num_garbage_bytes_ += bytes_to_remove;
+    }
     this->rx_message_.erase(this->rx_message_.begin(), this->rx_message_.begin() + bytes_to_remove);
   } while ((this->command_queue_.empty()) && (!this->rx_message_.empty()));  // stop if there's message to be sent or no input
 }
@@ -198,6 +243,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     }
     if (valid) {
       this->product_ = std::string(reinterpret_cast<const char *>(buffer), len);
+      this->product_text_sensor_->publish_state(this->product_);
     } else {
       this->product_ = R"({"p":"INVALID"})";
     }
@@ -251,6 +297,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
           this->wifi_status_ = UyatNetworkStatus::WIFI_CONFIGURED;
         }
         this->requested_wifi_config_is_ap_.reset();
+        update_pairing_mode_();
 
         this->send_wifi_status_(static_cast<uint8_t>(this->wifi_status_));
         this->wifi_status_ = UyatNetworkStatus::WIFI_CONNECTED;
@@ -306,6 +353,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       {
         this->requested_wifi_config_is_ap_ = 0x00;  // SMARTCONFIG
       }
+
+      update_pairing_mode_();
 
       this->init_state_ = UyatInitState::INIT_PRODUCT;
       this->send_empty_command_(UyatCommandType::WIFI_SELECT);
@@ -438,12 +487,24 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       break;
     }
     default:
+      this->unknown_extended_commands_set_.insert(subcommand);
+      if (this->unknown_extended_commands_text_sensor_)
+      {
+        const auto cmd_ids = cmd_ids_to_string(this->unknown_extended_commands_set_);
+        this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids);
+      }
       ESP_LOGE(TAG, "Invalid extended services subcommand (0x%02X) received",
                subcommand);
     }
     break;
   }
   default:
+    this->unknown_commands_set_.insert(command);
+    if (this->unknown_commands_text_sensor_)
+    {
+      const auto cmd_ids = cmd_ids_to_string(this->unknown_commands_set_);
+      this->unknown_commands_text_sensor_->publish_state(cmd_ids);
+    }
     ESP_LOGE(TAG, "Invalid command (0x%02X) received", command);
   }
 }
@@ -1010,6 +1071,26 @@ void Uyat::stop_heartbeats_()
 {
   this->cancel_interval("heartbeat");
   this->heartbeats_enabled_ = false;
+}
+
+void Uyat::update_pairing_mode_()
+{
+  if (this->pairing_mode_text_sensor_ != nullptr)
+  {
+    if (this->requested_wifi_config_is_ap_ == true)
+    {
+      this->pairing_mode_text_sensor_->publish_state("ap");
+    }
+    else
+    if (this->requested_wifi_config_is_ap_ == false)
+    {
+      this->pairing_mode_text_sensor_->publish_state("smartconfig");
+    }
+    else
+    {
+      this->pairing_mode_text_sensor_->publish_state("none");
+    }
+  }
 }
 
 } // namespace esphome::uyat

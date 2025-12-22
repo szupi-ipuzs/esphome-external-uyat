@@ -3,11 +3,14 @@
 #include <cinttypes>
 #include <vector>
 #include <deque>
+#include <set>
 
 #include "esphome/core/component.h"
 #include "esphome/core/defines.h"
 #include "esphome/core/helpers.h"
 #include "esphome/components/uart/uart.h"
+#include "esphome/components/sensor/sensor.h"
+#include "esphome/components/text_sensor/text_sensor.h"
 
 #ifdef USE_TIME
 #include "esphome/components/time/real_time_clock.h"
@@ -98,6 +101,11 @@ struct UyatCommand {
 };
 
 class Uyat : public Component, public uart::UARTDevice {
+  SUB_TEXT_SENSOR(product)
+  SUB_SENSOR(num_garbage_bytes)
+  SUB_TEXT_SENSOR(unknown_commands)
+  SUB_TEXT_SENSOR(unknown_extended_commands)
+  SUB_TEXT_SENSOR(pairing_mode)
  public:
   float get_setup_priority() const override { return setup_priority::DATA; }
   void setup() override;
@@ -155,6 +163,7 @@ class Uyat : public Component, public uart::UARTDevice {
   std::string process_get_module_information_(const uint8_t *buffer, size_t len);
   void schedule_heartbeat_(const bool initial);
   void stop_heartbeats_();
+  void update_pairing_mode_();
 
 #ifdef USE_TIME
   void send_local_time_();
@@ -181,6 +190,10 @@ class Uyat : public Component, public uart::UARTDevice {
   UyatNetworkStatus wifi_status_{UyatNetworkStatus::WIFI_CONFIGURED};
   optional<bool> requested_wifi_config_is_ap_{};
   CallbackManager<void()> initialized_callback_{};
+
+  uint64_t num_garbage_bytes_{0};
+  std::set<uint8_t> unknown_commands_set_;
+  std::set<uint8_t> unknown_extended_commands_set_;
 };
 
 }  // namespace uyat

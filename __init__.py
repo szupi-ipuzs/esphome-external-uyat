@@ -3,7 +3,9 @@ from esphome import automation
 from esphome import pins
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.components import uart, sensor, text_sensor
+from esphome.components import uart
+from esphome.components import sensor as esphome_sensor
+from esphome.components import text_sensor as esphome_text_sensor
 from esphome.const import (
        CONF_ID,
        CONF_TIME_ID,
@@ -98,21 +100,21 @@ def assign_declare_id(value):
 
 UYAT_DIAGNOSTIC_SENSORS_SCHEMA = cv.Schema(
     {
-        cv.Optional(CONF_PRODUCT): text_sensor.text_sensor_schema(
+        cv.Optional(CONF_PRODUCT): esphome_text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
-        cv.Optional(CONF_NUM_GARBAGE_BYTES): sensor.sensor_schema(
+        cv.Optional(CONF_NUM_GARBAGE_BYTES): esphome_sensor.sensor_schema(
             accuracy_decimals=0,
             state_class=STATE_CLASS_MEASUREMENT,
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
-        cv.Optional(CONF_UNKNOWN_COMMANDS): text_sensor.text_sensor_schema(
+        cv.Optional(CONF_UNKNOWN_COMMANDS): esphome_text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
-        cv.Optional(CONF_UNKNOWN_EXTENDED_COMMANDS): text_sensor.text_sensor_schema(
+        cv.Optional(CONF_UNKNOWN_EXTENDED_COMMANDS): esphome_text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
-        cv.Optional(CONF_PAIRING_MODE): text_sensor.text_sensor_schema(
+        cv.Optional(CONF_PAIRING_MODE): esphome_text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
     }
@@ -170,27 +172,27 @@ async def to_code(config):
         )
     if diagnostics_config := config.get(CONF_DIAGNOSTICS):
         if CONF_PRODUCT in diagnostics_config:
-            tsens = await text_sensor.create_diag_text_sensor(
+            tsens = await esphome_text_sensor.new_text_sensor(
                 diagnostics_config[CONF_PRODUCT]
             )
             cg.add(var.set_product_text_sensor(tsens))
         if CONF_NUM_GARBAGE_BYTES in diagnostics_config:
-            sens = await sensor.create_diag_sensor(
+            sens = await esphome_sensor.new_sensor(
                 diagnostics_config[CONF_NUM_GARBAGE_BYTES]
             )
             cg.add(var.set_num_garbage_bytes_sensor(sens))
         if CONF_UNKNOWN_COMMANDS in diagnostics_config:
-            tsens = await text_sensor.create_diag_text_sensor(
+            tsens = await esphome_text_sensor.new_text_sensor(
                 diagnostics_config[CONF_UNKNOWN_COMMANDS]
             )
             cg.add(var.set_unknown_commands_text_sensor(tsens))
         if CONF_UNKNOWN_EXTENDED_COMMANDS in diagnostics_config:
-            tsens = await text_sensor.create_diag_text_sensor(
+            tsens = await esphome_text_sensor.new_text_sensor(
                 diagnostics_config[CONF_UNKNOWN_EXTENDED_COMMANDS]
             )
             cg.add(var.set_unknown_extended_commands_text_sensor(tsens))
         if CONF_PAIRING_MODE in diagnostics_config:
-            tsens = await text_sensor.create_diag_text_sensor(
+            tsens = await esphome_text_sensor.new_text_sensor(
                 diagnostics_config[CONF_PAIRING_MODE]
             )
             cg.add(var.set_pairing_mode_text_sensor(tsens))

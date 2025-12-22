@@ -21,10 +21,6 @@ CONFIG_SCHEMA = (
     .extend(cv.COMPONENT_SCHEMA)
 )
 
-async def create_diag_sensor(config):
-    sens = await sensor.new_sensor(config)
-    return sens
-
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)

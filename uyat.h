@@ -16,8 +16,8 @@
 #include "esphome/core/time.h"
 #endif
 
-namespace esphome {
-namespace uyat {
+namespace esphome::uyat
+{
 
 enum UyatNetworkStatus: uint8_t {
   SMARTCONFIG = 0x00,
@@ -34,6 +34,12 @@ enum UyatDatapointType {
   STRING = 0x03,   // variable length
   ENUM = 0x04,     // 1 byte
   BITMASK = 0x05,  // 1/2/4 bytes
+};
+
+enum FactoryResetType: uint8_t {
+  BY_HW = 0x00, // Reset by hardware operation
+  BY_APP = 0x01, // Reset performed on the mobile app
+  BY_APP_WIPE = 0x02 // Factory reset performed on the mobile app
 };
 
 struct UyatDatapoint {
@@ -80,7 +86,7 @@ enum class UyatCommandType : uint8_t {
 
 enum class UyatExtendedServicesCommandType : uint8_t {
   RESET_NOTIFICATION = 0x04,
-  MODULE_RESET = 0x05,
+  FACTORY_RESET = 0x05,
   GET_MODULE_INFORMATION = 0x07,
   UPDATE_IN_PROGRESS = 0x0A,
 };
@@ -98,6 +104,8 @@ struct UyatCommand {
   UyatCommandType cmd;
   std::vector<uint8_t> payload;
 };
+
+template<typename... Ts> class FactoryResetAction;
 
 class Uyat : public Component, public uart::UARTDevice {
   SUB_TEXT_SENSOR(product)
@@ -135,6 +143,8 @@ class Uyat : public Component, public uart::UARTDevice {
   void add_on_initialized_callback(std::function<void()> callback) {
     this->initialized_callback_.add(std::move(callback));
   }
+
+  void trigger_factory_reset(const FactoryResetType reset_type);
 
  protected:
   void handle_input_buffer_();
@@ -195,5 +205,17 @@ class Uyat : public Component, public uart::UARTDevice {
   std::vector<uint8_t> unknown_extended_commands_set_;
 };
 
-}  // namespace uyat
-}  // namespace esphome
+template<typename... Ts> class FactoryResetAction : public Action<Ts...> {
+ public:
+  FactoryResetAction(Uyat *uyat) : uyat_(uyat) {}
+  TEMPLATABLE_VALUE(FactoryResetType, reset_type);
+
+  void play(const Ts &...x) override {
+    this->uyat_->trigger_factory_reset(this->reset_type_.value(x...));
+  }
+
+ protected:
+  Uyat *uyat_;
+};
+
+}  // namespace esphome::uyat

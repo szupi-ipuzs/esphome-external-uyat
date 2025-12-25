@@ -384,8 +384,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     stop_heartbeats_();
     ESP_LOGI(TAG, "Heartbeats disabled by MCU");
     break;
-  case UyatCommandType::LOCAL_TIME_QUERY:
 #ifdef USE_TIME
+  case UyatCommandType::LOCAL_TIME_QUERY:
     if (this->time_id_ != nullptr) {
       this->send_local_time_();
 
@@ -396,19 +396,19 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
         this->time_sync_callback_registered_ = true;
       }
     } else
-#endif
     {
       ESP_LOGW(
           TAG,
           "LOCAL_TIME_QUERY is not handled because time is not configured");
     }
     break;
-  case UyatCommandType::VACUUM_MAP_UPLOAD:
-    this->send_command_(UyatCommand{.cmd = UyatCommandType::VACUUM_MAP_UPLOAD,
-                                    .payload = std::vector<uint8_t>{0x01}});
-    ESP_LOGW(TAG,
-             "Vacuum map upload requested, responding that it is not enabled.");
-    break;
+#endif
+  // case UyatCommandType::VACUUM_MAP_UPLOAD:
+  //   this->send_command_(UyatCommand{.cmd = UyatCommandType::VACUUM_MAP_UPLOAD,
+  //                                   .payload = std::vector<uint8_t>{0x01}});
+  //   ESP_LOGW(TAG,
+  //            "Vacuum map upload requested, responding that it is not enabled.");
+  //   break;
   case UyatCommandType::GET_NETWORK_STATUS: {
     this->send_command_(
         UyatCommand{.cmd = UyatCommandType::GET_NETWORK_STATUS,
@@ -439,8 +439,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       ESP_LOGV(TAG, "Reset status notification enabled");
       break;
     }
-    case UyatExtendedServicesCommandType::MODULE_RESET: {
-      ESP_LOGE(TAG, "EXTENDED_SERVICES::MODULE_RESET is not handled");
+    case UyatExtendedServicesCommandType::FACTORY_RESET: {
+      ESP_LOGD(TAG, "Factory reset acked by MCU");
       break;
     }
     case UyatExtendedServicesCommandType::UPDATE_IN_PROGRESS: {
@@ -1080,5 +1080,16 @@ void Uyat::update_pairing_mode_()
     }
   }
 }
+
+void Uyat::trigger_factory_reset(const FactoryResetType reset_type)
+{
+  send_raw_command_(UyatCommand{
+      .cmd = UyatCommandType::EXTENDED_SERVICES,
+      .payload = std::vector<uint8_t>{
+          static_cast<uint8_t>(UyatExtendedServicesCommandType::FACTORY_RESET),
+          reset_type
+          }});
+}
+
 
 } // namespace esphome::uyat

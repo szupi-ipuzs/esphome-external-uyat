@@ -10,6 +10,7 @@ from esphome.const import (
        CONF_ID,
        CONF_TIME_ID,
        CONF_TRIGGER_ID,
+       CONF_TYPE,
        CONF_SENSOR_DATAPOINT,
        ENTITY_CATEGORY_DIAGNOSTIC,
        STATE_CLASS_MEASUREMENT,
@@ -32,7 +33,15 @@ CONF_UYAT_ID = "uyat_id"
 
 uyat_ns = cg.esphome_ns.namespace("uyat")
 UyatDatapointType = uyat_ns.enum("UyatDatapointType")
+FactoryResetType = uyat_ns.enum("FactoryResetType")
 Uyat = uyat_ns.class_("Uyat", cg.Component, uart.UARTDevice)
+UyatFactoryResetAction = uyat_ns.class_("FactoryResetAction", automation.Action)
+
+FACTORY_RESET_TYPES = {
+    "HW": FactoryResetType.BY_HW,
+    "APP": FactoryResetType.BY_APP,
+    "APP_WIPE": FactoryResetType.BY_APP_WIPE,
+}
 
 DPTYPE_ANY = "any"
 DPTYPE_RAW = "raw"
@@ -196,3 +205,31 @@ async def to_code(config):
                 diagnostics_config[CONF_PAIRING_MODE]
             )
             cg.add(var.set_pairing_mode_text_sensor(tsens))
+
+
+
+UYAT_ACTION_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(): cv.use_id(Uyat),
+    }
+)
+
+UYAT_FACTORY_RESET_SCHEMA = automation.maybe_simple_id(
+    UYAT_ACTION_SCHEMA.extend(
+        cv.Schema(
+            {
+                cv.Optional(CONF_TYPE, default="HW"): cv.enum(FACTORY_RESET_TYPES, upper=True),
+            }
+        )
+    )
+)
+
+
+@automation.register_action(
+    "uyat.factory_reset", UyatFactoryResetAction, UYAT_FACTORY_RESET_SCHEMA
+)
+async def uyat_factory_reset_to_code(config, action_id, template_arg, args):
+    paren = await cg.get_variable(config[CONF_ID])
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    cg.add(var.set_reset_type(config[CONF_TYPE]))
+    return var

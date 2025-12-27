@@ -12,28 +12,34 @@ void UyatNumber::setup() {
   }
 
   this->parent_->register_listener(this->number_id_, [this](const UyatDatapoint &datapoint) {
-    if (datapoint.type == UyatDatapointType::INTEGER) {
-      ESP_LOGV(TAG, "MCU reported number %u is: %d", datapoint.id, datapoint.value_int);
-      float value = datapoint.value_int / multiply_by_;
+    if (auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value))
+    {
+      ESP_LOGV(TAG, "MCU reported number %u is: %s", datapoint.number, dp_value->to_string());
+      float value = dp_value->value / this->multiply_by_;
       this->publish_state(value);
       if (this->restore_value_)
         this->pref_.save(&value);
-    } else if (datapoint.type == UyatDatapointType::ENUM) {
-      ESP_LOGV(TAG, "MCU reported number %u is: %u", datapoint.id, datapoint.value_enum);
-      float value = datapoint.value_enum;
+    }
+    else
+    if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value))
+    {
+      ESP_LOGV(TAG, "MCU reported number %u is: %s", datapoint.number, dp_value->to_string());
+      float value = dp_value->value;
       this->publish_state(value);
       if (this->restore_value_)
         this->pref_.save(&value);
-    } else {
-      ESP_LOGW(TAG, "Reported type (%d) is not a number!", static_cast<int>(datapoint.type));
+    }
+    else
+    {
+      ESP_LOGW(TAG, "Unexpected datapoint %d type (expected INTEGER or ENUM, got %s)!", datapoint.number, datapoint.get_type_name());
       return;
     }
 
-    if ((this->type_) && (this->type_ != datapoint.type)) {
-      ESP_LOGW(TAG, "Reported type (%d) different than previously set (%d)!", static_cast<int>(datapoint.type),
+    if ((this->type_) && (this->type_ != datapoint.get_type())) {
+      ESP_LOGW(TAG, "Reported type (%d) different than previously set (%d)!", static_cast<int>(datapoint.get_type()),
                static_cast<int>(*this->type_));
     }
-    this->type_ = datapoint.type;
+    this->type_ = datapoint.get_type();
   });
 
   this->parent_->add_on_initialized_callback([this] {

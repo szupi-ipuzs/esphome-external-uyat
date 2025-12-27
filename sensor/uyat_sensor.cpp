@@ -9,18 +9,24 @@ static const char *const TAG = "uyat.sensor";
 
 void UyatSensor::setup() {
   this->parent_->register_listener(this->sensor_id_, [this](const UyatDatapoint &datapoint) {
-    if (datapoint.type == UyatDatapointType::BOOLEAN) {
-      ESP_LOGV(TAG, "MCU reported sensor %u is: %s", datapoint.id, ONOFF(datapoint.value_bool));
-      this->publish_state(datapoint.value_bool);
-    } else if (datapoint.type == UyatDatapointType::INTEGER) {
-      ESP_LOGV(TAG, "MCU reported sensor %u is: %d", datapoint.id, datapoint.value_int);
-      this->publish_state(datapoint.value_int);
-    } else if (datapoint.type == UyatDatapointType::ENUM) {
-      ESP_LOGV(TAG, "MCU reported sensor %u is: %u", datapoint.id, datapoint.value_enum);
-      this->publish_state(datapoint.value_enum);
-    } else if (datapoint.type == UyatDatapointType::BITMASK) {
-      ESP_LOGV(TAG, "MCU reported sensor %u is: %" PRIx32, datapoint.id, datapoint.value_bitmask);
-      this->publish_state(datapoint.value_bitmask);
+    if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value)) {
+      ESP_LOGV(TAG, "MCU reported sensor %u is: %s", datapoint.number, ONOFF(dp_value->value));
+      this->publish_state(dp_value->value);
+    } else if (auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value)) {
+      ESP_LOGV(TAG, "MCU reported sensor %u is: %d", datapoint.number, dp_value->value);
+      this->publish_state(dp_value->value);
+    } else if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value)) {
+      ESP_LOGV(TAG, "MCU reported sensor %u is: %u", datapoint.number, dp_value->value);
+      this->publish_state(dp_value->value);
+    } else if (auto * dp_value = std::get_if<Bitmask8DatapointValue>(&datapoint.value)) {
+      ESP_LOGV(TAG, "MCU reported sensor %u is: %" PRIx32, datapoint.number, dp_value->value);
+      this->publish_state(dp_value->value);
+    } else if (auto * dp_value = std::get_if<Bitmask16DatapointValue>(&datapoint.value)) {
+      ESP_LOGV(TAG, "MCU reported sensor %u is: %" PRIx32, datapoint.number, dp_value->value);
+      this->publish_state(dp_value->value);
+    } else if (auto * dp_value = std::get_if<Bitmask32DatapointValue>(&datapoint.value)) {
+      ESP_LOGV(TAG, "MCU reported sensor %u is: %" PRIx32, datapoint.number, dp_value->value);
+      this->publish_state(dp_value->value);
     }
   });
 }

@@ -9,26 +9,40 @@ static const char *const TAG = "uyat.fan";
 void UyatFan::setup() {
   if (this->speed_id_.has_value()) {
     this->parent_->register_listener(*this->speed_id_, [this](const UyatDatapoint &datapoint) {
-      if (datapoint.type == UyatDatapointType::ENUM) {
-        ESP_LOGV(TAG, "MCU reported speed of: %d", datapoint.value_enum);
-        if (datapoint.value_enum >= this->speed_count_) {
-          ESP_LOGE(TAG, "Speed has invalid value %d", datapoint.value_enum);
+      if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value)) {
+        ESP_LOGV(TAG, "MCU reported speed of: %d", dp_value->value);
+        if (dp_value->value >= this->speed_count_) {
+          ESP_LOGE(TAG, "Speed has invalid value %d", dp_value->value);
         } else {
-          this->speed = datapoint.value_enum + 1;
+          this->speed = dp_value->value + 1;
           this->publish_state();
         }
-      } else if (datapoint.type == UyatDatapointType::INTEGER) {
-        ESP_LOGV(TAG, "MCU reported speed of: %d", datapoint.value_int);
-        this->speed = datapoint.value_int;
+      }
+      else
+      if (auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value)) {
+        ESP_LOGV(TAG, "MCU reported speed of: %d", dp_value->value);
+        this->speed = dp_value->value;
         this->publish_state();
       }
-      this->speed_type_ = datapoint.type;
+      else
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint %d type (expected INTEGER or ENUM, got %s)!", datapoint.number, datapoint.get_type_name());
+        return;
+      }
+      this->speed_type_ = datapoint.get_type();
     });
   }
   if (this->switch_id_.has_value()) {
     this->parent_->register_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
-      ESP_LOGV(TAG, "MCU reported switch is: %s", ONOFF(datapoint.value_bool));
-      this->state = datapoint.value_bool;
+      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      ESP_LOGV(TAG, "MCU reported switch %u is: %s", this->switch_id_, ONOFF(dp_value->value));
+      this->state = dp_value->value;
       this->publish_state();
     });
   }
@@ -36,17 +50,38 @@ void UyatFan::setup() {
     this->parent_->register_listener(*this->oscillation_id_, [this](const UyatDatapoint &datapoint) {
       // Whether data type is BOOL or ENUM, it will still be a 1 or a 0, so the functions below are valid in both
       // scenarios
-      ESP_LOGV(TAG, "MCU reported oscillation is: %s", ONOFF(datapoint.value_bool));
-      this->oscillating = datapoint.value_bool;
+      if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value))
+      {
+        this->oscillating = dp_value->value;
+      }
+      else
+      if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value))
+      {
+        this->oscillating = (dp_value->value != 0);
+      }
+      else
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      ESP_LOGV(TAG, "MCU reported oscillation is: %s", ONOFF(this->oscillating));
       this->publish_state();
 
-      this->oscillation_type_ = datapoint.type;
+      this->oscillation_type_ = datapoint.get_type();
     });
   }
   if (this->direction_id_.has_value()) {
     this->parent_->register_listener(*this->direction_id_, [this](const UyatDatapoint &datapoint) {
-      ESP_LOGD(TAG, "MCU reported reverse direction is: %s", ONOFF(datapoint.value_bool));
-      this->direction = datapoint.value_bool ? fan::FanDirection::REVERSE : fan::FanDirection::FORWARD;
+      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      ESP_LOGD(TAG, "MCU reported reverse direction is: %s", ONOFF(dp_value->value));
+      this->direction = dp_value->value ? fan::FanDirection::REVERSE : fan::FanDirection::FORWARD;
       this->publish_state();
     });
   }

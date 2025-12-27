@@ -15,7 +15,14 @@ void UyatLight::setup() {
         return;
       }
 
-      auto datapoint_value = datapoint.value_uint;
+      auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      auto datapoint_value = dp_value->value;
       if (this->color_temperature_invert_) {
         datapoint_value = this->color_temperature_max_value_ - datapoint_value;
       }
@@ -33,8 +40,15 @@ void UyatLight::setup() {
         return;
       }
 
+      auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
       auto call = this->state_->make_call();
-      call.set_brightness(float(datapoint.value_uint) / this->max_value_);
+      call.set_brightness(float(dp_value->value) / this->max_value_);
       call.perform();
     });
   }
@@ -45,8 +59,15 @@ void UyatLight::setup() {
         return;
       }
 
+      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
       auto call = this->state_->make_call();
-      call.set_state(datapoint.value_bool);
+      call.set_state(dp_value->value);
       call.perform();
     });
   }
@@ -57,11 +78,18 @@ void UyatLight::setup() {
         return;
       }
 
+      auto * dp_value = std::get_if<StringDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
       float red, green, blue;
       switch (*this->color_type_) {
         case UyatColorType::RGBHSV:
         case UyatColorType::RGB: {
-          auto rgb = parse_hex<uint32_t>(datapoint.value_string.substr(0, 6));
+          auto rgb = parse_hex<uint32_t>(dp_value->value.substr(0, 6));
           if (!rgb.has_value())
             return;
 
@@ -71,9 +99,9 @@ void UyatLight::setup() {
           break;
         }
         case UyatColorType::HSV: {
-          auto hue = parse_hex<uint16_t>(datapoint.value_string.substr(0, 4));
-          auto saturation = parse_hex<uint16_t>(datapoint.value_string.substr(4, 4));
-          auto value = parse_hex<uint16_t>(datapoint.value_string.substr(8, 4));
+          auto hue = parse_hex<uint16_t>(dp_value->value.substr(0, 4));
+          auto saturation = parse_hex<uint16_t>(dp_value->value.substr(4, 4));
+          auto value = parse_hex<uint16_t>(dp_value->value.substr(8, 4));
           if (!hue.has_value() || !saturation.has_value() || !value.has_value())
             return;
 

@@ -8,8 +8,15 @@ static const char *const TAG = "uyat.binary_sensor";
 
 void UyatBinarySensor::setup() {
   this->parent_->register_listener(this->sensor_id_, [this](const UyatDatapoint &datapoint) {
-    ESP_LOGV(TAG, "MCU reported binary sensor %u is: %s", datapoint.id, ONOFF(datapoint.value_bool));
-    this->publish_state(datapoint.value_bool);
+    auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+    if (!dp_value)
+    {
+      ESP_LOGW(TAG, "Unexpected datapoint type!");
+      return;
+    }
+
+    ESP_LOGV(TAG, "MCU reported binary sensor %u is: %s", datapoint.number, ONOFF(dp_value->value));
+    this->publish_state(dp_value->value);
   });
 }
 

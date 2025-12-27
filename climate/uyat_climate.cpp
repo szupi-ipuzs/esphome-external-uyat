@@ -9,9 +9,16 @@ static const char *const TAG = "uyat.climate";
 void UyatClimate::setup() {
   if (this->switch_id_.has_value()) {
     this->parent_->register_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
-      ESP_LOGV(TAG, "MCU reported switch is: %s", ONOFF(datapoint.value_bool));
+      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      ESP_LOGV(TAG, "MCU reported switch is: %s", ONOFF(dp_value->value));
       this->mode = climate::CLIMATE_MODE_OFF;
-      if (datapoint.value_bool) {
+      if (dp_value->value) {
         if (this->supports_heat_ && this->supports_cool_) {
           this->mode = climate::CLIMATE_MODE_HEAT_COOL;
         } else if (this->supports_heat_) {
@@ -34,15 +41,29 @@ void UyatClimate::setup() {
   }
   if (this->active_state_id_.has_value()) {
     this->parent_->register_listener(*this->active_state_id_, [this](const UyatDatapoint &datapoint) {
-      ESP_LOGV(TAG, "MCU reported active state is: %u", datapoint.value_enum);
-      this->active_state_ = datapoint.value_enum;
+      auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      ESP_LOGV(TAG, "MCU reported active state is: %u", dp_value->value);
+      this->active_state_ = dp_value->value;
       this->compute_state_();
       this->publish_state();
     });
   }
   if (this->target_temperature_id_.has_value()) {
     this->parent_->register_listener(*this->target_temperature_id_, [this](const UyatDatapoint &datapoint) {
-      this->manual_temperature_ = datapoint.value_int * this->target_temperature_multiplier_;
+      auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      this->manual_temperature_ = dp_value->value * this->target_temperature_multiplier_;
       if (this->reports_fahrenheit_) {
         this->manual_temperature_ = (this->manual_temperature_ - 32) * 5 / 9;
       }
@@ -55,7 +76,14 @@ void UyatClimate::setup() {
   }
   if (this->current_temperature_id_.has_value()) {
     this->parent_->register_listener(*this->current_temperature_id_, [this](const UyatDatapoint &datapoint) {
-      this->current_temperature = datapoint.value_int * this->current_temperature_multiplier_;
+      auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      this->current_temperature = dp_value->value * this->current_temperature_multiplier_;
       if (this->reports_fahrenheit_) {
         this->current_temperature = (this->current_temperature - 32) * 5 / 9;
       }
@@ -68,8 +96,22 @@ void UyatClimate::setup() {
   if (this->eco_id_.has_value()) {
     this->parent_->register_listener(*this->eco_id_, [this](const UyatDatapoint &datapoint) {
       // Whether data type is BOOL or ENUM, it will still be a 1 or a 0, so the functions below are valid in both cases
-      this->eco_ = datapoint.value_bool;
-      this->eco_type_ = datapoint.type;
+      if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value))
+      {
+        this->eco_ = dp_value->value;
+      }
+      else
+      if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value))
+      {
+        this->eco_ = dp_value->value;
+      }
+      else
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint %d type (expected BOOL or ENUM, got %s)!", datapoint.number, datapoint.get_type_name());
+        return;
+      }
+
+      this->eco_type_ = datapoint.get_type();
       ESP_LOGV(TAG, "MCU reported eco is: %s", ONOFF(this->eco_));
       this->compute_preset_();
       this->compute_target_temperature_();
@@ -78,7 +120,14 @@ void UyatClimate::setup() {
   }
   if (this->sleep_id_.has_value()) {
     this->parent_->register_listener(*this->sleep_id_, [this](const UyatDatapoint &datapoint) {
-      this->sleep_ = datapoint.value_bool;
+      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      this->sleep_ = dp_value->value;
       ESP_LOGV(TAG, "MCU reported sleep is: %s", ONOFF(this->sleep_));
       this->compute_preset_();
       this->compute_target_temperature_();
@@ -87,8 +136,15 @@ void UyatClimate::setup() {
   }
   if (this->swing_vertical_id_.has_value()) {
     this->parent_->register_listener(*this->swing_vertical_id_, [this](const UyatDatapoint &datapoint) {
-      this->swing_vertical_ = datapoint.value_bool;
-      ESP_LOGV(TAG, "MCU reported vertical swing is: %s", ONOFF(datapoint.value_bool));
+      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      this->swing_vertical_ = dp_value->value;
+      ESP_LOGV(TAG, "MCU reported vertical swing is: %s", ONOFF(dp_value->value));
       this->compute_swingmode_();
       this->publish_state();
     });
@@ -96,8 +152,15 @@ void UyatClimate::setup() {
 
   if (this->swing_horizontal_id_.has_value()) {
     this->parent_->register_listener(*this->swing_horizontal_id_, [this](const UyatDatapoint &datapoint) {
-      this->swing_horizontal_ = datapoint.value_bool;
-      ESP_LOGV(TAG, "MCU reported horizontal swing is: %s", ONOFF(datapoint.value_bool));
+      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      this->swing_horizontal_ = dp_value->value;
+      ESP_LOGV(TAG, "MCU reported horizontal swing is: %s", ONOFF(dp_value->value));
       this->compute_swingmode_();
       this->publish_state();
     });
@@ -105,8 +168,15 @@ void UyatClimate::setup() {
 
   if (this->fan_speed_id_.has_value()) {
     this->parent_->register_listener(*this->fan_speed_id_, [this](const UyatDatapoint &datapoint) {
-      ESP_LOGV(TAG, "MCU reported Fan Speed Mode is: %u", datapoint.value_enum);
-      this->fan_state_ = datapoint.value_enum;
+      auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value);
+      if (!dp_value)
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint type!");
+        return;
+      }
+
+      ESP_LOGV(TAG, "MCU reported Fan Speed Mode is: %u", dp_value->value);
+      this->fan_state_ = dp_value->value;
       this->compute_fanmode_();
       this->publish_state();
     });

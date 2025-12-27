@@ -89,28 +89,10 @@ void Uyat::dump_config() {
     ESP_LOGCONFIG(TAG, "  If no further output is received, confirm that this "
                        "is a supported Uyat device.");
   }
-  for (const auto &info : this->datapoints_) {
-    if (info.type == UyatDatapointType::RAW) {
-      ESP_LOGCONFIG(TAG, "  Datapoint %u: raw (value: %s)", info.id,
-                    format_hex_pretty(info.value_raw).c_str());
-    } else if (info.type == UyatDatapointType::BOOLEAN) {
-      ESP_LOGCONFIG(TAG, "  Datapoint %u: switch (value: %s)", info.id,
-                    ONOFF(info.value_bool));
-    } else if (info.type == UyatDatapointType::INTEGER) {
-      ESP_LOGCONFIG(TAG, "  Datapoint %u: int value (value: %d)", info.id,
-                    info.value_int);
-    } else if (info.type == UyatDatapointType::STRING) {
-      ESP_LOGCONFIG(TAG, "  Datapoint %u: string value (value: %s)", info.id,
-                    info.value_string.c_str());
-    } else if (info.type == UyatDatapointType::ENUM) {
-      ESP_LOGCONFIG(TAG, "  Datapoint %u: enum (value: %d)", info.id,
-                    info.value_enum);
-    } else if (info.type == UyatDatapointType::BITMASK) {
-      ESP_LOGCONFIG(TAG, "  Datapoint %u: bitmask (value: %" PRIx32 ")",
-                    info.id, info.value_bitmask);
-    } else {
-      ESP_LOGCONFIG(TAG, "  Datapoint %u: unknown", info.id);
-    }
+
+  ESP_LOGCONFIG(TAG, "  Listeners:");
+  for (const auto &dp : this->listeners_) {
+    ESP_LOGCONFIG(TAG, "    %s", dp.configured.to_string().c_str());
   }
 
   if (this->init_state_ > UyatInitState::INIT_CONF) {
@@ -499,125 +481,48 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
 
 void Uyat::handle_datapoints_(const uint8_t *buffer, size_t len) {
   while (len >= 4) {
-    UyatDatapoint datapoint{};
-    datapoint.id = buffer[0];
-    datapoint.type = (UyatDatapointType)buffer[1];
-    datapoint.value_uint = 0;
-
-    size_t data_size = (buffer[2] << 8) + buffer[3];
-    const uint8_t *data = buffer + 4;
-    size_t data_len = len - 4;
-    if (data_size > data_len) {
-      ESP_LOGW(TAG,
-               "Datapoint %u is truncated and cannot be parsed (%zu > %zu)",
-               datapoint.id, data_size, data_len);
-      return;
+    std::size_t used_len = 0u;
+    auto datapoint = UyatDatapoint::construct(buffer, len, used_len);
+    if (used_len == 0u)
+    {
+      used_len = len;
     }
 
-    datapoint.len = data_size;
+    len -= used_len;
+    buffer += used_len;
 
-    switch (datapoint.type) {
-    case UyatDatapointType::RAW:
-      datapoint.value_raw = std::vector<uint8_t>(data, data + data_size);
-      ESP_LOGD(TAG, "Datapoint %u update to %s", datapoint.id,
-               format_hex_pretty(datapoint.value_raw).c_str());
-      break;
-    case UyatDatapointType::BOOLEAN:
-      if (data_size != 1) {
-        ESP_LOGW(TAG, "Datapoint %u has bad boolean len %zu", datapoint.id,
-                 data_size);
-        return;
+    if (datapoint)
+    {
+      ESP_LOGD(TAG, "MCU reported %s", datapoint->to_string().c_str());
+      // drop update if datapoint is in ignore_mcu_datapoint_update list
+      if (this->ignore_mcu_update_on_datapoints_.end() != std::find(this->ignore_mcu_update_on_datapoints_.begin(), this->ignore_mcu_update_on_datapoints_.end(), datapoint->number))
+      {
+          ESP_LOGV(TAG,
+                  "Datapoint %u found in ignore_mcu_update_on_datapoints list, "
+                  "dropping MCU update",
+                  datapoint->number);
       }
-      datapoint.value_bool = data[0];
-      ESP_LOGD(TAG, "Datapoint %u update to %s", datapoint.id,
-               ONOFF(datapoint.value_bool));
-      break;
-    case UyatDatapointType::INTEGER:
-      if (data_size != 4) {
-        ESP_LOGW(TAG, "Datapoint %u has bad integer len %zu", datapoint.id,
-                 data_size);
-        return;
-      }
-      datapoint.value_uint = encode_uint32(data[0], data[1], data[2], data[3]);
-      ESP_LOGD(TAG, "Datapoint %u update to %d", datapoint.id,
-               datapoint.value_int);
-      break;
-    case UyatDatapointType::STRING:
-      datapoint.value_string =
-          std::string(reinterpret_cast<const char *>(data), data_size);
-      ESP_LOGD(TAG, "Datapoint %u update to %s", datapoint.id,
-               datapoint.value_string.c_str());
-      break;
-    case UyatDatapointType::ENUM:
-      if (data_size != 1) {
-        ESP_LOGW(TAG, "Datapoint %u has bad enum len %zu", datapoint.id,
-                 data_size);
-        return;
-      }
-      datapoint.value_enum = data[0];
-      ESP_LOGD(TAG, "Datapoint %u update to %d", datapoint.id,
-               datapoint.value_enum);
-      break;
-    case UyatDatapointType::BITMASK:
-      switch (data_size) {
-      case 1:
-        datapoint.value_bitmask = encode_uint32(0, 0, 0, data[0]);
-        break;
-      case 2:
-        datapoint.value_bitmask = encode_uint32(0, 0, data[0], data[1]);
-        break;
-      case 4:
-        datapoint.value_bitmask =
-            encode_uint32(data[0], data[1], data[2], data[3]);
-        break;
-      default:
-        ESP_LOGW(TAG, "Datapoint %u has bad bitmask len %zu", datapoint.id,
-                 data_size);
-        return;
-      }
-      ESP_LOGD(TAG, "Datapoint %u update to %#08" PRIX32, datapoint.id,
-               datapoint.value_bitmask);
-      break;
-    default:
-      ESP_LOGW(TAG, "Datapoint %u has unknown type %#02hhX", datapoint.id,
-               static_cast<uint8_t>(datapoint.type));
-      return;
-    }
+      else
+      {
+        // Update internal datapoints
+        bool found = false;
+        const auto matching = datapoint->make_matching();
+        for (auto &other : this->cached_datapoints_) {
+          if (other.matches(matching)) {
+            other = datapoint.value();
+            found = true;
+          }
+        }
+        if (!found) {
+          this->cached_datapoints_.push_back(datapoint.value());
+        }
 
-    len -= data_size + 4;
-    buffer = data + data_size;
-
-    // drop update if datapoint is in ignore_mcu_datapoint_update list
-    bool skip = false;
-    for (auto i : this->ignore_mcu_update_on_datapoints_) {
-      if (datapoint.id == i) {
-        ESP_LOGV(TAG,
-                 "Datapoint %u found in ignore_mcu_update_on_datapoints list, "
-                 "dropping MCU update",
-                 datapoint.id);
-        skip = true;
-        break;
+        // Run through listeners
+        for (auto &listener : this->listeners_) {
+          if (datapoint->matches(listener.configured))
+            listener.on_datapoint(datapoint.value());
+        }
       }
-    }
-    if (skip)
-      continue;
-
-    // Update internal datapoints
-    bool found = false;
-    for (auto &other : this->datapoints_) {
-      if (other.id == datapoint.id) {
-        other = datapoint;
-        found = true;
-      }
-    }
-    if (!found) {
-      this->datapoints_.push_back(datapoint);
-    }
-
-    // Run through listeners
-    for (auto &listener : this->listeners_) {
-      if (listener.datapoint_id == datapoint.id)
-        listener.on_datapoint(datapoint);
     }
   }
 }
@@ -748,153 +653,34 @@ void Uyat::send_local_time_() {
 }
 #endif
 
-void Uyat::set_raw_datapoint_value(uint8_t datapoint_id,
-                                   const std::vector<uint8_t> &value) {
-  this->set_raw_datapoint_value_(datapoint_id, value, false);
-}
+void Uyat::set_datapoint_value(const UyatDatapoint& dp, const bool forced ) {
+  ESP_LOGD(TAG, "Setting %s", dp.to_string().c_str());
+  auto configured_datapoint = this->get_datapoint_(dp.number);
+  if (configured_datapoint.has_value()) {
+    if (configured_datapoint->get_type() != dp.get_type())
+    {
+      ESP_LOGE(TAG, "Datapoint %u previously seen as %s setting as %s",
+              dp.number, configured_datapoint->get_type_name(), dp.get_type_name());
+    }
+    if (!forced && dp.value == configured_datapoint->value) {
+      ESP_LOGV(TAG, "Not sending unchanged value");
+      return;
+    }
+  }
 
-void Uyat::set_boolean_datapoint_value(uint8_t datapoint_id, bool value) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::BOOLEAN,
-                                     value, 1, false);
-}
-
-void Uyat::set_integer_datapoint_value(uint8_t datapoint_id, uint32_t value) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::INTEGER,
-                                     value, 4, false);
-}
-
-void Uyat::set_string_datapoint_value(uint8_t datapoint_id,
-                                      const std::string &value) {
-  this->set_string_datapoint_value_(datapoint_id, value, false);
-}
-
-void Uyat::set_enum_datapoint_value(uint8_t datapoint_id, uint8_t value) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::ENUM,
-                                     value, 1, false);
-}
-
-void Uyat::set_bitmask_datapoint_value(uint8_t datapoint_id, uint32_t value,
-                                       uint8_t length) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::BITMASK,
-                                     value, length, false);
-}
-
-void Uyat::force_set_raw_datapoint_value(uint8_t datapoint_id,
-                                         const std::vector<uint8_t> &value) {
-  this->set_raw_datapoint_value_(datapoint_id, value, true);
-}
-
-void Uyat::force_set_boolean_datapoint_value(uint8_t datapoint_id, bool value) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::BOOLEAN,
-                                     value, 1, true);
-}
-
-void Uyat::force_set_integer_datapoint_value(uint8_t datapoint_id,
-                                             uint32_t value) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::INTEGER,
-                                     value, 4, true);
-}
-
-void Uyat::force_set_string_datapoint_value(uint8_t datapoint_id,
-                                            const std::string &value) {
-  this->set_string_datapoint_value_(datapoint_id, value, true);
-}
-
-void Uyat::force_set_enum_datapoint_value(uint8_t datapoint_id, uint8_t value) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::ENUM,
-                                     value, 1, true);
-}
-
-void Uyat::force_set_bitmask_datapoint_value(uint8_t datapoint_id,
-                                             uint32_t value, uint8_t length) {
-  this->set_numeric_datapoint_value_(datapoint_id, UyatDatapointType::BITMASK,
-                                     value, length, true);
+  this->send_datapoint_command_(dp.number, dp.get_internal_type(), dp.value_to_payload());
 }
 
 optional<UyatDatapoint> Uyat::get_datapoint_(uint8_t datapoint_id) {
-  for (auto &datapoint : this->datapoints_) {
-    if (datapoint.id == datapoint_id)
+  for (auto &datapoint : this->cached_datapoints_) {
+    if (datapoint.number == datapoint_id)
       return datapoint;
   }
   return {};
 }
 
-void Uyat::set_numeric_datapoint_value_(uint8_t datapoint_id,
-                                        UyatDatapointType datapoint_type,
-                                        const uint32_t value, uint8_t length,
-                                        bool forced) {
-  ESP_LOGD(TAG, "Setting datapoint %u to %" PRIu32, datapoint_id, value);
-  optional<UyatDatapoint> datapoint = this->get_datapoint_(datapoint_id);
-  if (!datapoint.has_value()) {
-    ESP_LOGW(TAG, "Setting unknown datapoint %u", datapoint_id);
-  } else if (datapoint->type != datapoint_type) {
-    ESP_LOGE(TAG, "Attempt to set datapoint %u with incorrect type",
-             datapoint_id);
-    return;
-  } else if (!forced && datapoint->value_uint == value) {
-    ESP_LOGV(TAG, "Not sending unchanged value");
-    return;
-  }
-
-  std::vector<uint8_t> data;
-  switch (length) {
-  case 4:
-    data.push_back(value >> 24);
-    data.push_back(value >> 16);
-  case 2:
-    data.push_back(value >> 8);
-  case 1:
-    data.push_back(value >> 0);
-    break;
-  default:
-    ESP_LOGE(TAG, "Unexpected datapoint length %u", length);
-    return;
-  }
-  this->send_datapoint_command_(datapoint_id, datapoint_type, data);
-}
-
-void Uyat::set_raw_datapoint_value_(uint8_t datapoint_id,
-                                    const std::vector<uint8_t> &value,
-                                    bool forced) {
-  ESP_LOGD(TAG, "Setting datapoint %u to %s", datapoint_id,
-           format_hex_pretty(value).c_str());
-  optional<UyatDatapoint> datapoint = this->get_datapoint_(datapoint_id);
-  if (!datapoint.has_value()) {
-    ESP_LOGW(TAG, "Setting unknown datapoint %u", datapoint_id);
-  } else if (datapoint->type != UyatDatapointType::RAW) {
-    ESP_LOGE(TAG, "Attempt to set datapoint %u with incorrect type",
-             datapoint_id);
-    return;
-  } else if (!forced && datapoint->value_raw == value) {
-    ESP_LOGV(TAG, "Not sending unchanged value");
-    return;
-  }
-  this->send_datapoint_command_(datapoint_id, UyatDatapointType::RAW, value);
-}
-
-void Uyat::set_string_datapoint_value_(uint8_t datapoint_id,
-                                       const std::string &value, bool forced) {
-  ESP_LOGD(TAG, "Setting datapoint %u to %s", datapoint_id, value.c_str());
-  optional<UyatDatapoint> datapoint = this->get_datapoint_(datapoint_id);
-  if (!datapoint.has_value()) {
-    ESP_LOGW(TAG, "Setting unknown datapoint %u", datapoint_id);
-  } else if (datapoint->type != UyatDatapointType::STRING) {
-    ESP_LOGE(TAG, "Attempt to set datapoint %u with incorrect type",
-             datapoint_id);
-    return;
-  } else if (!forced && datapoint->value_string == value) {
-    ESP_LOGV(TAG, "Not sending unchanged value");
-    return;
-  }
-  std::vector<uint8_t> data;
-  for (char const &c : value) {
-    data.push_back(c);
-  }
-  this->send_datapoint_command_(datapoint_id, UyatDatapointType::STRING, data);
-}
-
 void Uyat::send_datapoint_command_(uint8_t datapoint_id,
-                                   UyatDatapointType datapoint_type,
+                                   UyatDatapointTypeInternal datapoint_type,
                                    std::vector<uint8_t> data) {
   std::vector<uint8_t> buffer;
   buffer.push_back(datapoint_id);
@@ -907,18 +693,34 @@ void Uyat::send_datapoint_command_(uint8_t datapoint_id,
                                   .payload = buffer});
 }
 
-void Uyat::register_listener(uint8_t datapoint_id,
+void Uyat::register_listener(const uint8_t datapoint_id,
                              const std::function<void(UyatDatapoint)> &func) {
   auto listener = UyatDatapointListener{
-      .datapoint_id = datapoint_id,
+      .configured = MatchingDatapoint{datapoint_id, {}},
       .on_datapoint = func,
   };
   this->listeners_.push_back(listener);
 
   // Run through existing datapoints
-  for (auto &datapoint : this->datapoints_) {
-    if (datapoint.id == datapoint_id)
-      func(datapoint);
+  for (auto &datapoint : this->cached_datapoints_) {
+    if (datapoint.matches(listener.configured))
+      listener.on_datapoint(datapoint);
+  }
+}
+
+void Uyat::register_listener(const uint8_t datapoint_id,
+                             const UyatDatapointType type,
+                             const std::function<void(UyatDatapoint)> &func) {
+  auto listener = UyatDatapointListener{
+      .configured = MatchingDatapoint{datapoint_id, type},
+      .on_datapoint = func,
+  };
+  this->listeners_.push_back(listener);
+
+  // Run through existing datapoints
+  for (auto &datapoint : this->cached_datapoints_) {
+    if (datapoint.matches(listener.configured))
+      listener.on_datapoint(datapoint);
   }
 }
 

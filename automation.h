@@ -46,9 +46,19 @@ class UyatEnumDatapointUpdateTrigger : public Trigger<uint8_t> {
   explicit UyatEnumDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id);
 };
 
-class UyatBitmaskDatapointUpdateTrigger : public Trigger<uint32_t> {
+class UyatBitmask8DatapointUpdateTrigger : public Trigger<uint8_t> {
  public:
-  explicit UyatBitmaskDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id);
+  explicit UyatBitmask8DatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id);
+};
+
+class UyatBitmask16DatapointUpdateTrigger : public Trigger<uint16_t> {
+ public:
+  explicit UyatBitmask16DatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id);
+};
+
+class UyatBitmask32DatapointUpdateTrigger : public Trigger<uint32_t> {
+ public:
+  explicit UyatBitmask32DatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id);
 };
 
 }  // namespace uyat

@@ -8,8 +8,15 @@ static const char *const TAG = "uyat.switch";
 
 void UyatSwitch::setup() {
   this->parent_->register_listener(this->switch_id_, [this](const UyatDatapoint &datapoint) {
-    ESP_LOGV(TAG, "MCU reported switch %u is: %s", this->switch_id_, ONOFF(datapoint.value_bool));
-    this->publish_state(datapoint.value_bool);
+    auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
+    if (!dp_value)
+    {
+      ESP_LOGW(TAG, "Unexpected datapoint type!");
+      return;
+    }
+
+    ESP_LOGV(TAG, "MCU reported switch %u is: %s", this->switch_id_, ONOFF(dp_value->value));
+    this->publish_state(dp_value->value);
   });
 }
 

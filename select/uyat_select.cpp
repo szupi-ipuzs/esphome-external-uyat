@@ -8,7 +8,32 @@ static const char *const TAG = "uyat.select";
 
 void UyatSelect::setup() {
   this->parent_->register_listener(this->select_id_, [this](const UyatDatapoint &datapoint) {
-    uint8_t enum_value = datapoint.value_enum;
+    uint8_t enum_value;
+    if (this->is_int_)
+    {
+      if (auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value))
+      {
+        enum_value = dp_value->value;
+      }
+      else
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint %d type (expected INTEGER, got %s)!", datapoint.number, datapoint.get_type_name());
+        return;
+      }
+    }
+    else
+    {
+      if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value))
+      {
+        enum_value = dp_value->value;
+      }
+      else
+      {
+        ESP_LOGW(TAG, "Unexpected datapoint %d type (expected ENUM, got %s)!", datapoint.number, datapoint.get_type_name());
+        return;
+      }
+    }
+
     ESP_LOGV(TAG, "MCU reported select %u value %u", this->select_id_, enum_value);
     auto mappings = this->mappings_;
     auto it = std::find(mappings.cbegin(), mappings.cend(), enum_value);

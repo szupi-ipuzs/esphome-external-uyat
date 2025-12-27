@@ -46,11 +46,18 @@ void UyatCover::setup() {
   }
 
   this->parent_->register_listener(report_id, [this](const UyatDatapoint &datapoint) {
-    if (datapoint.value_int == 123) {
+    auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
+    if (!dp_value)
+    {
+      ESP_LOGW(TAG, "Unexpected datapoint type!");
+      return;
+    }
+
+    if (dp_value->value == 123) {
       ESP_LOGD(TAG, "Ignoring MCU position report - not calibrated");
       return;
     }
-    auto pos = float(datapoint.value_uint - this->min_value_) / this->value_range_;
+    auto pos = float(dp_value->value - this->min_value_) / this->value_range_;
     this->position = this->invert_position_report_ ? pos : 1.0f - pos;
     this->publish_state();
   });

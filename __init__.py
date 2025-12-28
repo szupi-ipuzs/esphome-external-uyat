@@ -34,9 +34,14 @@ CONF_PRODUCT = "product"
 CONF_UYAT_ID = "uyat_id"
 
 uyat_ns = cg.esphome_ns.namespace("uyat")
-UyatDatapointType = uyat_ns.enum("UyatDatapointType")
+UyatDatapointType = uyat_ns.enum("UyatDatapointType", is_class=True)
+BoolDatapointValue = uyat_ns.class_("BoolDatapointValue")
+UIntDatapointValue = uyat_ns.class_("UIntDatapointValue")
+EnumDatapointValue = uyat_ns.class_("EnumDatapointValue")
+UyatDatapoint = uyat_ns.class_("UyatDatapoint")
 FactoryResetType = uyat_ns.enum("FactoryResetType")
 Uyat = uyat_ns.class_("Uyat", cg.Component, uart.UARTDevice)
+MatchingDatapoint = uyat_ns.class_("MatchingDatapoint")
 UyatFactoryResetAction = uyat_ns.class_("FactoryResetAction", automation.Action)
 
 FACTORY_RESET_TYPES = {
@@ -66,161 +71,6 @@ DATAPOINT_TYPES = {
     DPTYPE_BITMASK16: cg.uint16,
     DPTYPE_BITMASK32: cg.uint32,
 }
-
-SPECIFIC_DATAPOINT_TYPES = {
-    DPTYPE_RAW,
-    DPTYPE_BOOL,
-    DPTYPE_UINT,
-    DPTYPE_STRING,
-    DPTYPE_ENUM,
-    DPTYPE_BITMASK8,
-    DPTYPE_BITMASK16,
-    DPTYPE_BITMASK32,
-}
-
-
-RAW_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "RawDatapointWithValue"
-)
-
-RAW_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_RAW): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.ensure_list(cv.uint8_t),
-            }
-        )
-    }
-)
-
-
-BOOL_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "BoolDatapointWithValue"
-)
-
-BOOL_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_BOOL): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.boolean,
-            }
-        )
-    }
-)
-
-
-UINT_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "UIntDatapointWithValue"
-)
-
-UINT_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_UINT): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.uint32_t,
-            }
-        )
-    }
-)
-
-
-STRING_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "StringDatapointWithValue"
-)
-
-STRING_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_STRING): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.string,
-            }
-        )
-    }
-)
-
-
-ENUM_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "EnumDatapointWithValue"
-)
-
-ENUM_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_ENUM): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.uint8_t,
-            }
-        )
-    }
-)
-
-
-BITMASK8_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "Bitmask8DatapointWithValue"
-)
-
-BITMASK8_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_BITMASK8): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.uint8_t,
-            }
-        )
-    }
-)
-
-
-BITMASK16_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "Bitmask16DatapointWithValue"
-)
-
-BITMASK16_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_BITMASK16): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.uint16_t,
-            }
-        )
-    }
-)
-
-
-BITMASK32_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "Bitmask32DatapointWithValue"
-)
-
-BITMASK32_DATAPOINT_WITH_VALUE_SCHEMA = cv.Schema(
-    {
-        cv.Required(DPTYPE_BITMASK32): cv.Schema(
-            {
-                cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Required(CONF_VALUE): cv.uint32_t,
-            }
-        )
-    }
-)
-
-ANY_DATAPOINT_WITH_VALUE = uyat_ns.struct(
-    "AnyDatapointWithValue"
-)
-
-ANY_DATAPOINT_WITH_VALUE_SCHEMA = cv.Any(
-    RAW_DATAPOINT_WITH_VALUE_SCHEMA,
-    BOOL_DATAPOINT_WITH_VALUE_SCHEMA,
-    UINT_DATAPOINT_WITH_VALUE_SCHEMA,
-    STRING_DATAPOINT_WITH_VALUE_SCHEMA,
-    ENUM_DATAPOINT_WITH_VALUE_SCHEMA,
-    BITMASK8_DATAPOINT_WITH_VALUE_SCHEMA,
-    BITMASK16_DATAPOINT_WITH_VALUE_SCHEMA,
-    BITMASK32_DATAPOINT_WITH_VALUE_SCHEMA,
-)
-
 
 DATAPOINT_TRIGGERS = {
     DPTYPE_ANY: uyat_ns.class_(

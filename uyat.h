@@ -492,6 +492,7 @@ class Uyat : public Component, public uart::UARTDevice {
   void dump_config() override;
   void register_listener(const uint8_t datapoint_id, const std::function<void(UyatDatapoint)> &func);
   void register_listener(const uint8_t datapoint_id, const UyatDatapointType type, const std::function<void(UyatDatapoint)> &func);
+  void register_listener(const MatchingDatapoint& matching_dp, const std::function<void(UyatDatapoint)> &func);
   void set_datapoint_value(const UyatDatapoint& value, const bool forced = false);
   void set_status_pin(InternalGPIOPin *status_pin) { this->status_pin_ = status_pin; }
   void send_generic_command(const UyatCommand &command) { send_command_(command); }

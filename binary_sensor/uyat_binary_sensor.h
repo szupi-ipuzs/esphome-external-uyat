@@ -11,13 +11,13 @@ class UyatBinarySensor : public binary_sensor::BinarySensor, public Component {
  public:
   void setup() override;
   void dump_config() override;
-  void set_sensor_id(uint8_t sensor_id) { this->sensor_id_ = sensor_id; }
+  void set_matching_dp(const MatchingDatapoint& matching_dp) { this->matching_dp_ = matching_dp; }
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 
  protected:
   Uyat *parent_;
-  uint8_t sensor_id_{0};
+  MatchingDatapoint matching_dp_;
 };
 
 }  // namespace uyat

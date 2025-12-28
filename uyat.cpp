@@ -695,24 +695,19 @@ void Uyat::send_datapoint_command_(uint8_t datapoint_id,
 
 void Uyat::register_listener(const uint8_t datapoint_id,
                              const std::function<void(UyatDatapoint)> &func) {
-  auto listener = UyatDatapointListener{
-      .configured = MatchingDatapoint{datapoint_id, {}},
-      .on_datapoint = func,
-  };
-  this->listeners_.push_back(listener);
-
-  // Run through existing datapoints
-  for (auto &datapoint : this->cached_datapoints_) {
-    if (datapoint.matches(listener.configured))
-      listener.on_datapoint(datapoint);
-  }
+  register_listener(MatchingDatapoint{datapoint_id, {}}, func);
 }
 
 void Uyat::register_listener(const uint8_t datapoint_id,
                              const UyatDatapointType type,
                              const std::function<void(UyatDatapoint)> &func) {
+  register_listener(MatchingDatapoint{datapoint_id, type}, func);
+}
+
+void Uyat::register_listener(const MatchingDatapoint& matching_dp,
+                             const std::function<void(UyatDatapoint)> &func) {
   auto listener = UyatDatapointListener{
-      .configured = MatchingDatapoint{datapoint_id, type},
+      .configured = matching_dp,
       .on_datapoint = func,
   };
   this->listeners_.push_back(listener);

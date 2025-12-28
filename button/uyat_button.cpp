@@ -7,13 +7,13 @@ namespace uyat {
 static const char *const TAG = "uyat.button";
 
 void UyatButton::press_action() {
-  ESP_LOGV(TAG, "Pressing button %u", this->switch_id_);
-  this->parent_->force_set_boolean_datapoint_value(this->datapoint_id_, this->trigger_payload_);
+  ESP_LOGV(TAG, "Pressing button %s", this->trigger_payload_.to_string().c_str());
+  this->parent_->set_datapoint_value(this->trigger_payload_, true);
 }
 
 void UyatButton::dump_config() {
   LOG_BUTTON("", "Uyat Button", this);
-  ESP_LOGCONFIG(TAG, "  Button has datapoint ID %u, trigger payload is %d", this->datapoint_id_, this->trigger_payload_);
+  ESP_LOGCONFIG(TAG, "  Button is %s", this->trigger_payload_.to_string().c_str());
 }
 
 }  // namespace uyat

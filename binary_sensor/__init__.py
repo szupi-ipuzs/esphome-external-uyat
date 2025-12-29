@@ -48,7 +48,7 @@ async def to_code(config):
     dp_config = config[CONF_SENSOR_DATAPOINT]
     if not isinstance(dp_config, dict):
         struct = cg.StructInitializer(
-            MatchingDatapoint, ("number", dp_config)
+            MatchingDatapoint, ("number", dp_config), ("type", BINARY_SENSOR_DP_TYPES[DPTYPE_BOOL])
         )
         cg.add(var.set_matching_dp(struct))
     else:

@@ -10,9 +10,10 @@ from esphome.const import (
     CONF_SWING_MODE,
     CONF_SWITCH_DATAPOINT,
     CONF_TEMPERATURE,
+    CONF_NUMBER
 )
 
-from .. import CONF_UYAT_ID, Uyat, uyat_ns
+from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, UyatDatapointType, MatchingDatapoint, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM
 
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@jesserockz"]
@@ -117,11 +118,23 @@ ACTIVE_STATES = cv.Schema(
     },
 )
 
+ECO_DP_TYPES = {
+    DPTYPE_BOOL: UyatDatapointType.BOOLEAN,
+    DPTYPE_ENUM: UyatDatapointType.ENUM,
+}
 
 PRESETS = cv.Schema(
     {
         cv.Optional(CONF_ECO): {
-            cv.Required(CONF_DATAPOINT): cv.uint8_t,
+            cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
+                cv.Schema(
+                {
+                    cv.Required(CONF_NUMBER): cv.uint8_t,
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
+                        *ECO_DP_TYPES, lower=True
+                    ),
+                }),
+            ),
             cv.Optional(CONF_TEMPERATURE): cv.temperature,
         },
         cv.Optional(CONF_SLEEP): {
@@ -202,7 +215,9 @@ async def to_code(config):
     cg.add(var.set_supports_heat(config[CONF_SUPPORTS_HEAT]))
     cg.add(var.set_supports_cool(config[CONF_SUPPORTS_COOL]))
     if switch_datapoint := config.get(CONF_SWITCH_DATAPOINT):
-        cg.add(var.set_switch_id(switch_datapoint))
+        cg.add(var.set_switch_id(cg.StructInitializer(
+                    MatchingDatapoint, ("number", switch_datapoint), ("type", UyatDatapointType.INTEGER)
+                )))
 
     if heating_state_pin_config := config.get(CONF_HEATING_STATE_PIN):
         heating_state_pin = await cg.gpio_pin_expression(heating_state_pin_config)
@@ -211,7 +226,9 @@ async def to_code(config):
         cooling_state_pin = await cg.gpio_pin_expression(cooling_state_pin_config)
         cg.add(var.set_cooling_state_pin(cooling_state_pin))
     if active_state_config := config.get(CONF_ACTIVE_STATE):
-        cg.add(var.set_active_state_id(active_state_config.get(CONF_DATAPOINT)))
+        cg.add(var.set_active_state_id(cg.StructInitializer(
+                    MatchingDatapoint, ("number", active_state_config.get(CONF_DATAPOINT)), ("type", UyatDatapointType.ENUM)
+                )))
         if (heating_value := active_state_config.get(CONF_HEATING_VALUE)) is not None:
             cg.add(var.set_active_state_heating_value(heating_value))
         if (cooling_value := active_state_config.get(CONF_COOLING_VALUE)) is not None:
@@ -222,9 +239,13 @@ async def to_code(config):
             cg.add(var.set_active_state_fanonly_value(fanonly_value))
 
     if target_temperature_datapoint := config.get(CONF_TARGET_TEMPERATURE_DATAPOINT):
-        cg.add(var.set_target_temperature_id(target_temperature_datapoint))
+        cg.add(var.set_target_temperature_id(cg.StructInitializer(
+                    MatchingDatapoint, ("number", target_temperature_datapoint), ("type", UyatDatapointType.INTEGER)
+                )))
     if current_temperature_datapoint := config.get(CONF_CURRENT_TEMPERATURE_DATAPOINT):
-        cg.add(var.set_current_temperature_id(current_temperature_datapoint))
+        cg.add(var.set_current_temperature_id(cg.StructInitializer(
+                    MatchingDatapoint, ("number", current_temperature_datapoint), ("type", UyatDatapointType.INTEGER)
+                )))
 
     if temperature_multiplier := config.get(CONF_TEMPERATURE_MULTIPLIER):
         cg.add(var.set_target_temperature_multiplier(temperature_multiplier))
@@ -246,21 +267,40 @@ async def to_code(config):
 
     if preset_config := config.get(CONF_PRESET, {}):
         if eco_config := preset_config.get(CONF_ECO, {}):
-            cg.add(var.set_eco_id(eco_config.get(CONF_DATAPOINT)))
+            dp_config = eco_config.get(CONF_DATAPOINT)
+            if not isinstance(dp_config, dict):
+                struct = cg.StructInitializer(
+                    MatchingDatapoint, ("number", dp_config), ("type", UyatDatapointType.BOOLEAN)
+                )
+                cg.add(var.set_eco_id(struct))
+            else:
+                struct = cg.StructInitializer(
+                    MatchingDatapoint, ("number", dp_config[CONF_NUMBER]), ("type", ECO_DP_TYPES[dp_config[CONF_DATAPOINT_TYPE]])
+                )
+                cg.add(var.set_eco_id(struct))
+
             if eco_temperature := eco_config.get(CONF_TEMPERATURE):
                 cg.add(var.set_eco_temperature(eco_temperature))
         if sleep_config := preset_config.get(CONF_SLEEP, {}):
-            cg.add(var.set_sleep_id(sleep_config.get(CONF_DATAPOINT)))
+            cg.add(var.set_sleep_id(cg.StructInitializer(
+                MatchingDatapoint, ("number", sleep_config.get(CONF_DATAPOINT)), ("type", UyatDatapointType.BOOLEAN)
+            )))
 
     if swing_mode_config := config.get(CONF_SWING_MODE):
         if swing_vertical_datapoint := swing_mode_config.get(CONF_VERTICAL_DATAPOINT):
-            cg.add(var.set_swing_vertical_id(swing_vertical_datapoint))
+            cg.add(var.set_swing_vertical_id(cg.StructInitializer(
+                MatchingDatapoint, ("number", swing_vertical_datapoint), ("type", UyatDatapointType.BOOLEAN)
+            )))
         if swing_horizontal_datapoint := swing_mode_config.get(
             CONF_HORIZONTAL_DATAPOINT
         ):
-            cg.add(var.set_swing_horizontal_id(swing_horizontal_datapoint))
+            cg.add(var.set_swing_horizontal_id(cg.StructInitializer(
+                MatchingDatapoint, ("number", swing_horizontal_datapoint), ("type", UyatDatapointType.BOOLEAN)
+            )))
     if fan_mode_config := config.get(CONF_FAN_MODE):
-        cg.add(var.set_fan_speed_id(fan_mode_config.get(CONF_DATAPOINT)))
+        cg.add(var.set_fan_speed_id(cg.StructInitializer(
+            MatchingDatapoint, ("number", fan_mode_config.get(CONF_DATAPOINT)), ("type", UyatDatapointType.ENUM)
+        )))
         if (fan_auto_value := fan_mode_config.get(CONF_AUTO_VALUE)) is not None:
             cg.add(var.set_fan_speed_auto_value(fan_auto_value))
         if (fan_low_value := fan_mode_config.get(CONF_LOW_VALUE)) is not None:

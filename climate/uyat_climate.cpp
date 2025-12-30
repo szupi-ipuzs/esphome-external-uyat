@@ -8,7 +8,7 @@ static const char *const TAG = "uyat.climate";
 
 void UyatClimate::setup() {
   if (this->switch_id_.has_value()) {
-    this->parent_->register_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -40,7 +40,7 @@ void UyatClimate::setup() {
     this->cooling_state_ = this->cooling_state_pin_->digital_read();
   }
   if (this->active_state_id_.has_value()) {
-    this->parent_->register_listener(*this->active_state_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->active_state_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -55,7 +55,7 @@ void UyatClimate::setup() {
     });
   }
   if (this->target_temperature_id_.has_value()) {
-    this->parent_->register_listener(*this->target_temperature_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->target_temperature_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -75,7 +75,7 @@ void UyatClimate::setup() {
     });
   }
   if (this->current_temperature_id_.has_value()) {
-    this->parent_->register_listener(*this->current_temperature_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->current_temperature_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -94,7 +94,7 @@ void UyatClimate::setup() {
     });
   }
   if (this->eco_id_.has_value()) {
-    this->parent_->register_listener(*this->eco_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->eco_id_, [this](const UyatDatapoint &datapoint) {
       // Whether data type is BOOL or ENUM, it will still be a 1 or a 0, so the functions below are valid in both cases
       if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value))
       {
@@ -118,7 +118,7 @@ void UyatClimate::setup() {
     });
   }
   if (this->sleep_id_.has_value()) {
-    this->parent_->register_listener(*this->sleep_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->sleep_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -134,7 +134,7 @@ void UyatClimate::setup() {
     });
   }
   if (this->swing_vertical_id_.has_value()) {
-    this->parent_->register_listener(*this->swing_vertical_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->swing_vertical_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -150,7 +150,7 @@ void UyatClimate::setup() {
   }
 
   if (this->swing_horizontal_id_.has_value()) {
-    this->parent_->register_listener(*this->swing_horizontal_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->swing_horizontal_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -166,7 +166,7 @@ void UyatClimate::setup() {
   }
 
   if (this->fan_speed_id_.has_value()) {
-    this->parent_->register_listener(*this->fan_speed_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->fan_speed_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value);
       if (!dp_value)
       {

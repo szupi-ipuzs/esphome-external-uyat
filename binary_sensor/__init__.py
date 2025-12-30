@@ -3,20 +3,23 @@ from esphome.components import binary_sensor
 import esphome.config_validation as cv
 from esphome.const import CONF_SENSOR_DATAPOINT, CONF_NUMBER
 
-from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, uyat_ns, Uyat, UyatDatapointType, MatchingDatapoint, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM
+from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, uyat_ns, Uyat, UyatDatapointType, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_BITMASK
 
 DEPENDENCIES = ["uyat"]
-CODEOWNERS = ["@jesserockz"]
+CODEOWNERS = ["@szupi_ipuzs"]
+
+CONF_BIT_NUMBER = "bit_number"
 
 UyatBinarySensor = uyat_ns.class_(
     "UyatBinarySensor", binary_sensor.BinarySensor, cg.Component
 )
 
-BINARY_SENSOR_DP_TYPES = {
-    DPTYPE_BOOL: UyatDatapointType.BOOLEAN,
-    DPTYPE_UINT: UyatDatapointType.INTEGER,
-    DPTYPE_ENUM: UyatDatapointType.ENUM,
-}
+BINARY_SENSOR_DP_TYPES = [
+    DPTYPE_BOOL,
+    DPTYPE_UINT,
+    DPTYPE_ENUM,
+    DPTYPE_BITMASK,
+]
 
 CONFIG_SCHEMA = (
     binary_sensor.binary_sensor_schema(UyatBinarySensor)
@@ -30,6 +33,7 @@ CONFIG_SCHEMA = (
                     cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
                         *BINARY_SENSOR_DP_TYPES, lower=True
                     ),
+                    cv.Optional(CONF_BIT_NUMBER): cv.uint8_t
                 })
             ),
         }
@@ -47,12 +51,13 @@ async def to_code(config):
 
     dp_config = config[CONF_SENSOR_DATAPOINT]
     if not isinstance(dp_config, dict):
-        struct = cg.StructInitializer(
-            MatchingDatapoint, ("number", dp_config), ("type", BINARY_SENSOR_DP_TYPES[DPTYPE_BOOL])
-        )
-        cg.add(var.set_matching_dp(struct))
+        cg.add(var.configure_bool_dp(dp_config))
     else:
-        struct = cg.StructInitializer(
-            MatchingDatapoint, ("number", dp_config[CONF_NUMBER]), ("type", BINARY_SENSOR_DP_TYPES[dp_config[CONF_DATAPOINT_TYPE]])
-        )
-        cg.add(var.set_matching_dp(struct))
+        if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BITMASK:
+            cg.add(var.configure_bitmask_dp(dp_config[CONF_NUMBER], cg.uint8(dp_config[CONF_BIT_NUMBER]-1)))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BOOL:
+            cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER]))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_UINT:
+            cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER]))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ENUM:
+            cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER]))

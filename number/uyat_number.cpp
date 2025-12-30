@@ -11,7 +11,7 @@ void UyatNumber::setup() {
     this->pref_ = global_preferences->make_preference<float>(this->get_preference_hash());
   }
 
-  this->parent_->register_listener(this->number_id_, [this](const UyatDatapoint &datapoint) {
+  this->parent_->register_datapoint_listener(this->number_id_, [this](const UyatDatapoint &datapoint) {
     if (auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value))
     {
       ESP_LOGV(TAG, "MCU reported number %u is: %s", datapoint.number, dp_value->to_string());

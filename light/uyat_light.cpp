@@ -9,7 +9,7 @@ static const char *const TAG = "uyat.light";
 
 void UyatLight::setup() {
   if (this->color_temperature_id_.has_value()) {
-    this->parent_->register_listener(*this->color_temperature_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->color_temperature_id_, [this](const UyatDatapoint &datapoint) {
       if (this->state_->current_values != this->state_->remote_values) {
         ESP_LOGD(TAG, "Light is transitioning, datapoint change ignored");
         return;
@@ -34,7 +34,7 @@ void UyatLight::setup() {
     });
   }
   if (this->dimmer_id_.has_value()) {
-    this->parent_->register_listener(*this->dimmer_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->dimmer_id_, [this](const UyatDatapoint &datapoint) {
       if (this->state_->current_values != this->state_->remote_values) {
         ESP_LOGD(TAG, "Light is transitioning, datapoint change ignored");
         return;
@@ -53,7 +53,7 @@ void UyatLight::setup() {
     });
   }
   if (switch_id_.has_value()) {
-    this->parent_->register_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
       if (this->state_->current_values != this->state_->remote_values) {
         ESP_LOGD(TAG, "Light is transitioning, datapoint change ignored");
         return;
@@ -72,7 +72,7 @@ void UyatLight::setup() {
     });
   }
   if (color_id_.has_value()) {
-    this->parent_->register_listener(*this->color_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->color_id_, [this](const UyatDatapoint &datapoint) {
       if (this->state_->current_values != this->state_->remote_values) {
         ESP_LOGD(TAG, "Light is transitioning, datapoint change ignored");
         return;

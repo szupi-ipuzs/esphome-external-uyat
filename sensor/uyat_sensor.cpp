@@ -8,7 +8,7 @@ namespace uyat {
 static const char *const TAG = "uyat.sensor";
 
 void UyatSensor::setup() {
-  this->parent_->register_listener(this->sensor_id_, [this](const UyatDatapoint &datapoint) {
+  this->parent_->register_datapoint_listener(this->sensor_id_, [this](const UyatDatapoint &datapoint) {
     if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value)) {
       ESP_LOGV(TAG, "MCU reported sensor %u is: %s", datapoint.number, ONOFF(dp_value->value));
       this->publish_state(dp_value->value);

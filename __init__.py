@@ -59,6 +59,7 @@ DPTYPE_ENUM = "enum"
 DPTYPE_BITMASK8 = "bitmask8"
 DPTYPE_BITMASK16 = "bitmask16"
 DPTYPE_BITMASK32 = "bitmask32"
+DPTYPE_BITMASK = "bitmask"
 
 DATAPOINT_TYPES = {
     DPTYPE_ANY: uyat_ns.struct("UyatDatapoint"),

@@ -12,7 +12,7 @@ namespace uyat {
 class UyatDatapointUpdateTrigger : public Trigger<UyatDatapoint> {
  public:
   explicit UyatDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-    parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) { this->trigger(dp); });
+    parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) { this->trigger(dp); });
   }
 };
 

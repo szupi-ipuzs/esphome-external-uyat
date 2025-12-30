@@ -7,7 +7,7 @@ namespace uyat {
 static const char *const TAG = "uyat.select";
 
 void UyatSelect::setup() {
-  this->parent_->register_listener(this->select_id_, [this](const UyatDatapoint &datapoint) {
+  this->parent_->register_datapoint_listener(this->select_id_, [this](const UyatDatapoint &datapoint) {
     uint8_t enum_value;
     if (this->is_int_)
     {

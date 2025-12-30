@@ -45,7 +45,7 @@ void UyatCover::setup() {
     report_id = *this->position_report_id_;
   }
 
-  this->parent_->register_listener(report_id, [this](const UyatDatapoint &datapoint) {
+  this->parent_->register_datapoint_listener(report_id, [this](const UyatDatapoint &datapoint) {
     auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
     if (!dp_value)
     {

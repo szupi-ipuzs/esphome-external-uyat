@@ -6,41 +6,41 @@ namespace uyat {
 
 static const char *const TAG = "uyat.binary_sensor";
 
+void UyatBinarySensor::configure_bool_dp(const uint8_t dp_id)
+{
+  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_bool([this](const bool value){on_value(value);}, dp_id)));
+}
+
+void UyatBinarySensor::configure_uint_dp(const uint8_t dp_id)
+{
+  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_uint([this](const bool value){on_value(value);}, dp_id)));
+}
+
+void UyatBinarySensor::configure_enum_dp(const uint8_t dp_id)
+{
+  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_enum([this](const bool value){on_value(value);}, dp_id)));
+}
+
+void UyatBinarySensor::configure_bitmask_dp(const uint8_t dp_id, const uint8_t bit_number)
+{
+  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_bitmap([this](const bool value){on_value(value);}, dp_id, bit_number)));
+}
+
 void UyatBinarySensor::setup() {
-  this->parent_->register_listener(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
-    if (!datapoint.matches(matching_dp_))
-    {
-      ESP_LOGW(TAG, "Unexpected datapoint type!");
-      return;
-    }
-
-    ESP_LOGV(TAG, "MCU reported binary sensor %s", datapoint.to_string());
-
-    if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value))
-    {
-      this->publish_state(dp_value->value);
-    }
-    else
-    if (auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value))
-    {
-      this->publish_state(dp_value->value != 0);
-    }
-    else
-    if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value))
-    {
-      this->publish_state(dp_value->value != 0);
-    }
-    else
-    {
-      ESP_LOGW(TAG, "Unhandled datapoint type %s!", datapoint.get_type_name());
-      return;
-    }
+  this->dp_binary_sensor_->init([this](const MatchingDatapoint& matching_dp, const OnDatapointCallback& callback)
+  {
+    this->parent_->register_datapoint_listener(matching_dp, callback);
   });
 }
 
 void UyatBinarySensor::dump_config() {
   ESP_LOGCONFIG(TAG, "Uyat Binary Sensor:");
-  ESP_LOGCONFIG(TAG, "  Binary Sensor is %s", this->matching_dp_.to_string());
+  ESP_LOGCONFIG(TAG, "  Binary Sensor is %s", this->dp_binary_sensor_? this->dp_binary_sensor_->to_string().c_str() : "misconfigured!");
+}
+
+void UyatBinarySensor::on_value(const bool value)
+{
+  this->publish_state(value);
 }
 
 }  // namespace uyat

@@ -7,7 +7,7 @@ namespace uyat {
 static const char *const TAG = "uyat.switch";
 
 void UyatSwitch::setup() {
-  this->parent_->register_listener(this->switch_id_, [this](const UyatDatapoint &datapoint) {
+  this->parent_->register_datapoint_listener(this->switch_id_, [this](const UyatDatapoint &datapoint) {
     auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
     if (!dp_value)
     {

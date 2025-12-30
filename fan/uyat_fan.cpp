@@ -8,7 +8,7 @@ static const char *const TAG = "uyat.fan";
 
 void UyatFan::setup() {
   if (this->speed_id_.has_value()) {
-    this->parent_->register_listener(*this->speed_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->speed_id_, [this](const UyatDatapoint &datapoint) {
       if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value)) {
         ESP_LOGV(TAG, "MCU reported speed of: %d", dp_value->value);
         if (dp_value->value >= this->speed_count_) {
@@ -33,7 +33,7 @@ void UyatFan::setup() {
     });
   }
   if (this->switch_id_.has_value()) {
-    this->parent_->register_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
       if (!dp_value)
       {
@@ -47,7 +47,7 @@ void UyatFan::setup() {
     });
   }
   if (this->oscillation_id_.has_value()) {
-    this->parent_->register_listener(*this->oscillation_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->oscillation_id_, [this](const UyatDatapoint &datapoint) {
       // Whether data type is BOOL or ENUM, it will still be a 1 or a 0, so the functions below are valid in both
       // scenarios
       if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value))
@@ -72,7 +72,7 @@ void UyatFan::setup() {
     });
   }
   if (this->direction_id_.has_value()) {
-    this->parent_->register_listener(*this->direction_id_, [this](const UyatDatapoint &datapoint) {
+    this->parent_->register_datapoint_listener(*this->direction_id_, [this](const UyatDatapoint &datapoint) {
       auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
       if (!dp_value)
       {

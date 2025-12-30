@@ -7,7 +7,7 @@ namespace uyat {
 static const char *const TAG = "uyat.text_sensor";
 
 void UyatTextSensor::setup() {
-  this->parent_->register_listener(this->sensor_id_, [this](const UyatDatapoint &datapoint) {
+  this->parent_->register_datapoint_listener(this->sensor_id_, [this](const UyatDatapoint &datapoint) {
 
     if (auto * dp_value = std::get_if<StringDatapointValue>(&datapoint.value))
     {

@@ -506,9 +506,8 @@ void Uyat::handle_datapoints_(const uint8_t *buffer, size_t len) {
       {
         // Update internal datapoints
         bool found = false;
-        const auto matching = datapoint->make_matching();
         for (auto &other : this->cached_datapoints_) {
-          if (other.matches(matching)) {
+          if (other.matches(datapoint.value())) {
             other = datapoint.value();
             found = true;
           }
@@ -693,19 +692,19 @@ void Uyat::send_datapoint_command_(uint8_t datapoint_id,
                                   .payload = buffer});
 }
 
-void Uyat::register_listener(const uint8_t datapoint_id,
-                             const std::function<void(UyatDatapoint)> &func) {
-  register_listener(MatchingDatapoint{datapoint_id, {}}, func);
+void Uyat::register_datapoint_listener(const uint8_t datapoint_id,
+                             const OnDatapointCallback &func) {
+  register_datapoint_listener(MatchingDatapoint{datapoint_id, {}}, func);
 }
 
-void Uyat::register_listener(const uint8_t datapoint_id,
+void Uyat::register_datapoint_listener(const uint8_t datapoint_id,
                              const UyatDatapointType type,
-                             const std::function<void(UyatDatapoint)> &func) {
-  register_listener(MatchingDatapoint{datapoint_id, type}, func);
+                             const OnDatapointCallback &func) {
+  register_datapoint_listener(MatchingDatapoint{datapoint_id, type}, func);
 }
 
-void Uyat::register_listener(const MatchingDatapoint& matching_dp,
-                             const std::function<void(UyatDatapoint)> &func) {
+void Uyat::register_datapoint_listener(const MatchingDatapoint& matching_dp,
+                             const OnDatapointCallback &func) {
   auto listener = UyatDatapointListener{
       .configured = matching_dp,
       .on_datapoint = func,

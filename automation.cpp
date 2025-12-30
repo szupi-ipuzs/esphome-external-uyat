@@ -15,7 +15,7 @@ void check_expected_datapoint(const UyatDatapoint &dp, UyatDatapointType expecte
 }
 
 UyatRawDatapointUpdateTrigger::UyatRawDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<RawDatapointValue>(&dp.value);
     if (!dp_value)
     {
@@ -27,7 +27,7 @@ UyatRawDatapointUpdateTrigger::UyatRawDatapointUpdateTrigger(Uyat *parent, uint8
 }
 
 UyatBoolDatapointUpdateTrigger::UyatBoolDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<BoolDatapointValue>(&dp.value);
     if (!dp_value)
     {
@@ -39,7 +39,7 @@ UyatBoolDatapointUpdateTrigger::UyatBoolDatapointUpdateTrigger(Uyat *parent, uin
 }
 
 UyatUIntDatapointUpdateTrigger::UyatUIntDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<UIntDatapointValue>(&dp.value);
     if (!dp_value)
     {
@@ -51,7 +51,7 @@ UyatUIntDatapointUpdateTrigger::UyatUIntDatapointUpdateTrigger(Uyat *parent, uin
 }
 
 UyatStringDatapointUpdateTrigger::UyatStringDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<StringDatapointValue>(&dp.value);
     if (!dp_value)
     {
@@ -63,7 +63,7 @@ UyatStringDatapointUpdateTrigger::UyatStringDatapointUpdateTrigger(Uyat *parent,
 }
 
 UyatEnumDatapointUpdateTrigger::UyatEnumDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<EnumDatapointValue>(&dp.value);
     if (!dp_value)
     {
@@ -75,7 +75,7 @@ UyatEnumDatapointUpdateTrigger::UyatEnumDatapointUpdateTrigger(Uyat *parent, uin
 }
 
 UyatBitmask8DatapointUpdateTrigger::UyatBitmask8DatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<Bitmask8DatapointValue>(&dp.value);
     if (!dp_value)
     {
@@ -87,7 +87,7 @@ UyatBitmask8DatapointUpdateTrigger::UyatBitmask8DatapointUpdateTrigger(Uyat *par
 }
 
 UyatBitmask16DatapointUpdateTrigger::UyatBitmask16DatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<Bitmask16DatapointValue>(&dp.value);
     if (!dp_value)
     {
@@ -99,7 +99,7 @@ UyatBitmask16DatapointUpdateTrigger::UyatBitmask16DatapointUpdateTrigger(Uyat *p
 }
 
 UyatBitmask32DatapointUpdateTrigger::UyatBitmask32DatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id) {
-  parent->register_listener(sensor_id, [this](const UyatDatapoint &dp) {
+  parent->register_datapoint_listener(sensor_id, [this](const UyatDatapoint &dp) {
     auto * dp_value = std::get_if<Bitmask32DatapointValue>(&dp.value);
     if (!dp_value)
     {

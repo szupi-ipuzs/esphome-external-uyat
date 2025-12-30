@@ -4,14 +4,22 @@
 #include "esphome/components/uyat/uyat.h"
 #include "esphome/components/switch/switch.h"
 
+#include "../dp_switch.h"
+
 namespace esphome {
 namespace uyat {
 
 class UyatSwitch : public switch_::Switch, public Component {
+ private:
+  void on_value(const bool);
+  std::string get_object_id() const;
+
  public:
   void setup() override;
   void dump_config() override;
-  void set_switch_id(uint8_t switch_id) { this->switch_id_ = switch_id; }
+  void configure_bool_dp(const uint8_t dp_id);
+  void configure_uint_dp(const uint8_t dp_id);
+  void configure_enum_dp(const uint8_t dp_id);
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 
@@ -19,7 +27,7 @@ class UyatSwitch : public switch_::Switch, public Component {
   void write_state(bool state) override;
 
   Uyat *parent_;
-  uint8_t switch_id_{0};
+  std::optional<DpSwitch> dp_switch_;
 };
 
 }  // namespace uyat

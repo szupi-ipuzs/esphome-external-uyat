@@ -88,7 +88,7 @@ struct UyatCommand {
 
 template<typename... Ts> class FactoryResetAction;
 
-class Uyat : public Component, public uart::UARTDevice {
+class Uyat : public Component, public uart::UARTDevice, public DatapointHandler {
   SUB_TEXT_SENSOR(product)
   SUB_SENSOR(num_garbage_bytes)
   SUB_TEXT_SENSOR(unknown_commands)
@@ -101,8 +101,8 @@ class Uyat : public Component, public uart::UARTDevice {
   void dump_config() override;
   void register_datapoint_listener(const uint8_t datapoint_id, const OnDatapointCallback &func);
   void register_datapoint_listener(const uint8_t datapoint_id, const UyatDatapointType type, const OnDatapointCallback &func);
-  void register_datapoint_listener(const MatchingDatapoint& matching_dp, const OnDatapointCallback &func);
-  void set_datapoint_value(const UyatDatapoint& value, const bool forced = false);
+  void register_datapoint_listener(const MatchingDatapoint& matching_dp, const OnDatapointCallback &func) override;
+  void set_datapoint_value(const UyatDatapoint& value, const bool forced = false) override;
   void set_status_pin(InternalGPIOPin *status_pin) { this->status_pin_ = status_pin; }
   void send_generic_command(const UyatCommand &command) { send_command_(command); }
   UyatInitState get_init_state();

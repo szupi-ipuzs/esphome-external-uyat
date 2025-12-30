@@ -3,7 +3,7 @@ from esphome.components import binary_sensor
 import esphome.config_validation as cv
 from esphome.const import CONF_SENSOR_DATAPOINT, CONF_NUMBER
 
-from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, uyat_ns, Uyat, UyatDatapointType, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_BITMASK
+from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, uyat_ns, Uyat, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_BITMASK
 
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@szupi_ipuzs"]

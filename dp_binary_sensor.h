@@ -13,10 +13,10 @@ struct DpBinarySensor
 
    using OnValueCallback = std::function<void(const bool)>;
 
-   void init(const DpRegisterFunction& dp_register)
+   void init(DatapointHandler& handler)
    {
-      dp_register(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpBinarySensor::TAG, "Processing as binary sensor %s", datapoint.to_string());
+      handler.register_datapoint_listener(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
+         ESP_LOGV(DpBinarySensor::TAG, "%s processing as binary sensor", datapoint.to_string());
 
          if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value))
          {

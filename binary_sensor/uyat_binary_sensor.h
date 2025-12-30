@@ -12,6 +12,7 @@ namespace uyat {
 class UyatBinarySensor : public binary_sensor::BinarySensor, public Component {
  private:
   void on_value(const bool);
+  std::string get_object_id() const;
 
  public:
   void setup() override;

@@ -1,5 +1,8 @@
 #include "esphome/core/log.h"
+#include "esphome/core/entity_base.h"
 #include "uyat_switch.h"
+
+#include <assert.h>
 
 namespace esphome {
 namespace uyat {
@@ -7,28 +10,46 @@ namespace uyat {
 static const char *const TAG = "uyat.switch";
 
 void UyatSwitch::setup() {
-  this->parent_->register_datapoint_listener(this->switch_id_, [this](const UyatDatapoint &datapoint) {
-    auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
-    if (!dp_value)
-    {
-      ESP_LOGW(TAG, "Unexpected datapoint type!");
-      return;
-    }
+  assert(this->parent_);
+  this->dp_switch_->init(*(this->parent_));
+}
 
-    ESP_LOGV(TAG, "MCU reported switch %u is: %s", this->switch_id_, ONOFF(dp_value->value));
-    this->publish_state(dp_value->value);
-  });
+void UyatSwitch::configure_bool_dp(const uint8_t dp_id)
+{
+  this->dp_switch_.emplace(std::move(DpSwitch::create_for_bool([this](const bool value){on_value(value);}, dp_id)));
+}
+
+void UyatSwitch::configure_uint_dp(const uint8_t dp_id)
+{
+  this->dp_switch_.emplace(std::move(DpSwitch::create_for_uint([this](const bool value){on_value(value);}, dp_id)));
+}
+
+void UyatSwitch::configure_enum_dp(const uint8_t dp_id)
+{
+  this->dp_switch_.emplace(std::move(DpSwitch::create_for_enum([this](const bool value){on_value(value);}, dp_id)));
 }
 
 void UyatSwitch::write_state(bool state) {
-  ESP_LOGV(TAG, "Setting switch %u: %s", this->switch_id_, ONOFF(state));
-  this->parent_->set_boolean_datapoint_value(this->switch_id_, state);
+  ESP_LOGV(TAG, "Setting %s to %s", get_object_id().c_str(), ONOFF(state));
+  this->dp_switch_->set_value(state);
   this->publish_state(state);
 }
 
 void UyatSwitch::dump_config() {
   LOG_SWITCH("", "Uyat Switch", this);
-  ESP_LOGCONFIG(TAG, "  Switch has datapoint ID %u", this->switch_id_);
+  ESP_LOGCONFIG(TAG, "  Switch %s is %s", get_object_id().c_str(), this->dp_switch_? this->dp_switch_->to_string().c_str() : "misconfigured!");
+}
+
+void UyatSwitch::on_value(const bool value)
+{
+  ESP_LOGV(TAG, "MCU reported %s is: %s", get_object_id().c_str(), ONOFF(value));
+  this->publish_state(value);
+}
+
+std::string UyatSwitch::get_object_id() const
+{
+  char object_id_buf[OBJECT_ID_MAX_LEN];
+  return this->get_object_id_to(object_id_buf).str();
 }
 
 }  // namespace uyat

@@ -418,6 +418,13 @@ struct UyatDatapoint {
 };
 
 using OnDatapointCallback = std::function<void(UyatDatapoint)>;
-using DpRegisterFunction = std::function<void(const MatchingDatapoint&, const OnDatapointCallback&)>;
+
+struct DatapointHandler
+{
+  virtual ~DatapointHandler() = default;
+
+  virtual void register_datapoint_listener(const MatchingDatapoint& matching_dp, const OnDatapointCallback& callback) = 0;
+  virtual void set_datapoint_value(const UyatDatapoint& dp, const bool forced = false) = 0;
+};
 
 }

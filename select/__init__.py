@@ -2,19 +2,25 @@ import esphome.codegen as cg
 from esphome.components import select
 import esphome.config_validation as cv
 from esphome.const import (
-    CONF_ENUM_DATAPOINT,
-    CONF_INT_DATAPOINT,
     CONF_OPTIMISTIC,
     CONF_OPTIONS,
+    CONF_NUMBER
 )
 
-from .. import CONF_UYAT_ID, Uyat, uyat_ns
+from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM
+
+CONF_SELECT_DATAPOINT = "select_datapoint"
 
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@bearpawmaxim"]
 
 UyatSelect = uyat_ns.class_("UyatSelect", select.Select, cg.Component)
 
+SELECT_DP_TYPES = [
+    DPTYPE_BOOL,
+    DPTYPE_UINT,
+    DPTYPE_ENUM
+]
 
 def ensure_option_map(value):
     cv.check_not_templatable(value)
@@ -36,14 +42,20 @@ CONFIG_SCHEMA = cv.All(
     .extend(
         {
             cv.GenerateID(CONF_UYAT_ID): cv.use_id(Uyat),
-            cv.Optional(CONF_ENUM_DATAPOINT): cv.uint8_t,
-            cv.Optional(CONF_INT_DATAPOINT): cv.uint8_t,
+            cv.Required(CONF_SELECT_DATAPOINT): cv.Any(cv.uint8_t,
+                cv.Schema(
+                {
+                    cv.Required(CONF_NUMBER): cv.uint8_t,
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_ENUM): cv.one_of(
+                        *SELECT_DP_TYPES, lower=True
+                    )
+                })
+            ),
             cv.Required(CONF_OPTIONS): ensure_option_map,
             cv.Optional(CONF_OPTIMISTIC, default=False): cv.boolean,
         }
     )
-    .extend(cv.COMPONENT_SCHEMA),
-    cv.has_exactly_one_key(CONF_ENUM_DATAPOINT, CONF_INT_DATAPOINT),
+    .extend(cv.COMPONENT_SCHEMA)
 )
 
 
@@ -54,8 +66,15 @@ async def to_code(config):
     cg.add(var.set_select_mappings(list(options_map.keys())))
     parent = await cg.get_variable(config[CONF_UYAT_ID])
     cg.add(var.set_uyat_parent(parent))
-    if (enum_datapoint := config.get(CONF_ENUM_DATAPOINT, None)) is not None:
-        cg.add(var.set_select_id(enum_datapoint, False))
-    if (int_datapoint := config.get(CONF_INT_DATAPOINT, None)) is not None:
-        cg.add(var.set_select_id(int_datapoint, True))
     cg.add(var.set_optimistic(config[CONF_OPTIMISTIC]))
+
+    dp_config = config[CONF_SELECT_DATAPOINT]
+    if not isinstance(dp_config, dict):
+        cg.add(var.configure_enum_dp(dp_config))
+    else:
+        if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BOOL:
+            cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER]))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_UINT:
+            cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER]))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ENUM:
+            cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER]))

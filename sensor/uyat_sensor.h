@@ -4,7 +4,7 @@
 #include "esphome/components/sensor/sensor.h"
 
 #include "../uyat.h"
-#include "../dp_sensor.h"
+#include "../dp_number.h"
 
 #include <optional>
 
@@ -29,7 +29,7 @@ class UyatSensor : public sensor::Sensor, public Component {
 
  protected:
   Uyat *parent_;
-  std::optional<DpSensor> dp_sensor_;
+  std::optional<DpNumber> dp_number_;
 };
 
 }  // namespace

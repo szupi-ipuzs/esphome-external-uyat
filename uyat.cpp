@@ -23,32 +23,52 @@ static void add_unique_to_vector(std::vector<uint8_t> &vec, const uint8_t value)
   }
 }
 
+static bool remove_from_vector(std::vector<uint8_t> &vec, const uint8_t value) {
+  auto it = std::find(vec.begin(), vec.end(), value);
+  if (it != vec.end()) {
+    vec.erase(it);
+    return true;
+  }
+  return false;
+}
+
 void Uyat::setup() {
   schedule_heartbeat_(true);
   if (this->status_pin_ != nullptr) {
     this->status_pin_->digital_write(false);
   }
 
-  if (this->num_garbage_bytes_sensor_)
+  if ((this->num_garbage_bytes_sensor_) || (this->unknown_commands_text_sensor_) ||
+      (this->unknown_extended_commands_text_sensor_) || (this->unhandled_datapoints_text_sensor_))
   {
-    this->set_interval("num_garbage_bytes", 1000, [this]{
-      this->num_garbage_bytes_sensor_->publish_state(this->num_garbage_bytes_);
+    this->set_interval("diag_sensors_update", 1000, [this]{
+      if (this->num_garbage_bytes_sensor_)
+      {
+        this->num_garbage_bytes_sensor_->publish_state(this->num_garbage_bytes_);
+      }
+
+      if (this->unknown_commands_text_sensor_)
+      {
+        const auto cmd_ids = format_hex_pretty(this->unknown_commands_set_, ' ', false);
+        this->unknown_commands_text_sensor_->publish_state(cmd_ids);
+      }
+
+      if (this->unknown_extended_commands_text_sensor_)
+      {
+        const auto cmd_ids = format_hex_pretty(this->unknown_extended_commands_set_, ' ', false);
+        this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids);
+      }
+
+      if (this->unhandled_datapoints_text_sensor_)
+      {
+        const auto dp_ids = format_hex_pretty(this->unhandled_datapoints_set_, ' ', false);
+        this->unhandled_datapoints_text_sensor_->publish_state(dp_ids);
+      }
+
     });
   }
 
   this->defer([this]{
-    if (this->unknown_commands_text_sensor_)
-    {
-      const auto cmd_ids = format_hex_pretty(this->unknown_commands_set_, ' ', false);
-      this->unknown_commands_text_sensor_->publish_state(cmd_ids);
-    }
-
-    if (this->unknown_extended_commands_text_sensor_)
-    {
-      const auto cmd_ids = format_hex_pretty(this->unknown_extended_commands_set_, ' ', false);
-      this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids);
-    }
-
     update_pairing_mode_();
   });
 }
@@ -517,9 +537,22 @@ void Uyat::handle_datapoints_(const uint8_t *buffer, size_t len) {
         }
 
         // Run through listeners
+        bool handled = false;
         for (auto &listener : this->listeners_) {
           if (datapoint->matches(listener.configured))
+          {
             listener.on_datapoint(datapoint.value());
+            handled = true;
+          }
+        }
+
+        if (!handled)
+        {
+          add_unique_to_vector(this->unhandled_datapoints_set_, datapoint->number);
+        }
+        else
+        {
+          (void) remove_from_vector(this->unhandled_datapoints_set_, datapoint->number);
         }
       }
     }
@@ -714,7 +747,10 @@ void Uyat::register_datapoint_listener(const MatchingDatapoint& matching_dp,
   // Run through existing datapoints
   for (auto &datapoint : this->cached_datapoints_) {
     if (datapoint.matches(listener.configured))
+    {
       listener.on_datapoint(datapoint);
+      remove_from_vector(this->unhandled_datapoints_set_, datapoint.number);
+    }
   }
 }
 

@@ -93,6 +93,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   SUB_SENSOR(num_garbage_bytes)
   SUB_TEXT_SENSOR(unknown_commands)
   SUB_TEXT_SENSOR(unknown_extended_commands)
+  SUB_TEXT_SENSOR(unhandled_datapoints)
   SUB_TEXT_SENSOR(pairing_mode)
  public:
   float get_setup_priority() const override { return setup_priority::DATA; }
@@ -212,6 +213,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   uint64_t num_garbage_bytes_{0};
   std::vector<uint8_t> unknown_commands_set_;
   std::vector<uint8_t> unknown_extended_commands_set_;
+  std::vector<uint8_t> unhandled_datapoints_set_;
 };
 
 template<typename... Ts> class FactoryResetAction : public Action<Ts...> {

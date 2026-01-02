@@ -29,6 +29,7 @@ CONF_DIAGNOSTICS = "diagnostics"
 CONF_NUM_GARBAGE_BYTES = "num_garbage_bytes"
 CONF_UNKNOWN_COMMANDS = "unknown_commands"
 CONF_UNKNOWN_EXTENDED_COMMANDS = "unknown_extended_commands"
+CONF_UNHANDLED_DATAPOINTS = "unhandled_datapoints"
 CONF_PAIRING_MODE = "pairing_mode"
 CONF_PRODUCT = "product"
 CONF_UYAT_ID = "uyat_id"
@@ -137,6 +138,9 @@ UYAT_DIAGNOSTIC_SENSORS_SCHEMA = cv.Schema(
         cv.Optional(CONF_UNKNOWN_EXTENDED_COMMANDS): esphome_text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
+        cv.Optional(CONF_UNHANDLED_DATAPOINTS): esphome_text_sensor.text_sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+        ),
         cv.Optional(CONF_PAIRING_MODE): esphome_text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
@@ -214,6 +218,11 @@ async def to_code(config):
                 diagnostics_config[CONF_UNKNOWN_EXTENDED_COMMANDS]
             )
             cg.add(var.set_unknown_extended_commands_text_sensor(tsens))
+        if CONF_UNHANDLED_DATAPOINTS in diagnostics_config:
+            tsens = await esphome_text_sensor.new_text_sensor(
+                diagnostics_config[CONF_UNHANDLED_DATAPOINTS]
+            )
+            cg.add(var.set_unhandled_datapoints_text_sensor(tsens))
         if CONF_PAIRING_MODE in diagnostics_config:
             tsens = await esphome_text_sensor.new_text_sensor(
                 diagnostics_config[CONF_PAIRING_MODE]

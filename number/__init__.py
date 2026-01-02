@@ -3,29 +3,26 @@ from esphome.components import number
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_ID,
-    CONF_INITIAL_VALUE,
     CONF_MAX_VALUE,
     CONF_MIN_VALUE,
-    CONF_MULTIPLY,
     CONF_NUMBER_DATAPOINT,
-    CONF_RESTORE_VALUE,
     CONF_STEP,
+    CONF_NUMBER,
 )
 
-from .. import CONF_UYAT_ID, Uyat, UyatDatapointType, uyat_ns
+from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM
 
 DEPENDENCIES = ["uyat"]
-CODEOWNERS = ["@frankiboy1"]
+CODEOWNERS = ["@szupi_ipuzs"]
 
-CONF_DATAPOINT_HIDDEN = "datapoint_hidden"
-CONF_DATAPOINT_TYPE = "datapoint_type"
+CONF_SCALE = "scale"
 
 UyatNumber = uyat_ns.class_("UyatNumber", number.Number, cg.Component)
 
-DATAPOINT_TYPES = {
-    "int": UyatDatapointType.INTEGER,
-    "uint": UyatDatapointType.INTEGER,
-    "enum": UyatDatapointType.ENUM,
+NUMBER_DP_TYPES = {
+    DPTYPE_BOOL,
+    DPTYPE_UINT,
+    DPTYPE_ENUM,
 }
 
 
@@ -34,14 +31,14 @@ def validate_min_max(config):
     min_value = config[CONF_MIN_VALUE]
     if max_value <= min_value:
         raise cv.Invalid("max_value must be greater than min_value")
-    if (
-        (hidden_config := config.get(CONF_DATAPOINT_HIDDEN))
-        and (initial_value := hidden_config.get(CONF_INITIAL_VALUE, None)) is not None
-        and ((initial_value > max_value) or (initial_value < min_value))
-    ):
-        raise cv.Invalid(
-            f"{CONF_INITIAL_VALUE} must be a value between {CONF_MAX_VALUE} and {CONF_MIN_VALUE}"
-        )
+    # if (
+    #     (hidden_config := config.get(CONF_DATAPOINT_HIDDEN))
+    #     and (initial_value := hidden_config.get(CONF_INITIAL_VALUE, None)) is not None
+    #     and ((initial_value > max_value) or (initial_value < min_value))
+    # ):
+    #     raise cv.Invalid(
+    #         f"{CONF_INITIAL_VALUE} must be a value between {CONF_MAX_VALUE} and {CONF_MIN_VALUE}"
+    #     )
     return config
 
 
@@ -50,22 +47,19 @@ CONFIG_SCHEMA = cv.All(
     .extend(
         {
             cv.GenerateID(CONF_UYAT_ID): cv.use_id(Uyat),
-            cv.Required(CONF_NUMBER_DATAPOINT): cv.uint8_t,
+            cv.Required(CONF_NUMBER_DATAPOINT): cv.Any(cv.uint8_t,
+                cv.Schema(
+                {
+                    cv.Required(CONF_NUMBER): cv.uint8_t,
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_UINT): cv.one_of(
+                        *NUMBER_DP_TYPES, lower=True
+                    )
+                })
+            ),
             cv.Required(CONF_MAX_VALUE): cv.float_,
             cv.Required(CONF_MIN_VALUE): cv.float_,
             cv.Required(CONF_STEP): cv.positive_float,
-            cv.Optional(CONF_MULTIPLY, default=1.0): cv.float_,
-            cv.Optional(CONF_DATAPOINT_HIDDEN): cv.All(
-                cv.Schema(
-                    {
-                        cv.Required(CONF_DATAPOINT_TYPE): cv.enum(
-                            DATAPOINT_TYPES, lower=True
-                        ),
-                        cv.Optional(CONF_INITIAL_VALUE): cv.float_,
-                        cv.Optional(CONF_RESTORE_VALUE, default=False): cv.boolean,
-                    }
-                )
-            ),
+            cv.Optional(CONF_SCALE, default=0): cv.uint8_t
         }
     )
     .extend(cv.COMPONENT_SCHEMA),
@@ -84,15 +78,16 @@ async def to_code(config):
         step=config[CONF_STEP],
     )
 
-    cg.add(var.set_write_multiply(config[CONF_MULTIPLY]))
     parent = await cg.get_variable(config[CONF_UYAT_ID])
     cg.add(var.set_uyat_parent(parent))
 
-    cg.add(var.set_number_id(config[CONF_NUMBER_DATAPOINT]))
-    if hidden_config := config.get(CONF_DATAPOINT_HIDDEN):
-        cg.add(var.set_datapoint_type(hidden_config[CONF_DATAPOINT_TYPE]))
-        if (
-            hidden_init_value := hidden_config.get(CONF_INITIAL_VALUE, None)
-        ) is not None:
-            cg.add(var.set_datapoint_initial_value(hidden_init_value))
-        cg.add(var.set_restore_value(hidden_config[CONF_RESTORE_VALUE]))
+    dp_config = config[CONF_NUMBER_DATAPOINT]
+    if not isinstance(dp_config, dict):
+        cg.add(var.configure_uint_dp(dp_config, config[CONF_SCALE]))
+    else:
+        if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BOOL:
+            cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER], config[CONF_SCALE]))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_UINT:
+            cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER], config[CONF_SCALE]))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ENUM:
+            cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER], config[CONF_SCALE]))

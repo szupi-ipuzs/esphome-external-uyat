@@ -77,7 +77,7 @@ struct DpNumber
       assert(this->handler_ != nullptr);
       ESP_LOGV(DpNumber::TAG, "Setting value to %.3f for %s", value, this->config_to_string().c_str());
       this->set_value_ = value;
-      uint32_t raw_value = static_cast<uint32_t>((value / this->multiplier_) - float(this->offset_));
+      uint32_t raw_value = static_cast<uint32_t>((lround(value / this->multiplier_) - (this->offset_)));
       if (this->matching_dp_.type.has_value() == false)
       {
          // assume bitmask

@@ -8,24 +8,24 @@ namespace uyat {
 
 static const char *const TAG = "uyat.text_sensor";
 
-void UyatTextSensor::configure_raw_dp(const uint8_t dp_id, const bool base64_encoded , const bool as_hex)
+void UyatTextSensor::configure_raw_dp(const uint8_t dp_id, const TextDataEncoding encoding)
 {
-  this->dp_text_sensor_.emplace(std::move(DpTextSensor::create_for_raw([this](const std::string& value){on_value(value);}, dp_id, base64_encoded, as_hex)));
+  this->dp_text_.emplace(std::move(DpText::create_for_raw([this](const std::string& value){on_value(value);}, dp_id, encoding)));
 }
 
-void UyatTextSensor::configure_string_dp(const uint8_t dp_id, const bool base64_encoded, const bool as_hex)
+void UyatTextSensor::configure_string_dp(const uint8_t dp_id, const TextDataEncoding encoding)
 {
-  this->dp_text_sensor_.emplace(std::move(DpTextSensor::create_for_string([this](const std::string& value){on_value(value);}, dp_id, base64_encoded, as_hex)));
+  this->dp_text_.emplace(std::move(DpText::create_for_string([this](const std::string& value){on_value(value);}, dp_id, encoding)));
 }
 
 void UyatTextSensor::setup() {
   assert(this->parent_);
-  this->dp_text_sensor_->init(*(this->parent_));
+  this->dp_text_->init(*(this->parent_));
 }
 
 void UyatTextSensor::dump_config() {
   ESP_LOGCONFIG(TAG, "Uyat Text Sensor:");
-  ESP_LOGCONFIG(TAG, "  Text Sensor %s is %s", get_object_id().c_str(), this->dp_text_sensor_? this->dp_text_sensor_->config_to_string().c_str() : "misconfigured!");
+  ESP_LOGCONFIG(TAG, "  Text Sensor %s is %s", get_object_id().c_str(), this->dp_text_? this->dp_text_->config_to_string().c_str() : "misconfigured!");
 }
 
 void UyatTextSensor::on_value(const std::string& value)

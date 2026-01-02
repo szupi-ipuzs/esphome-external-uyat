@@ -10,9 +10,12 @@ CODEOWNERS = ["@szupi_ipuzs"]
 
 UyatTextSensor = uyat_ns.class_("UyatTextSensor", text_sensor.TextSensor, cg.Component)
 UyatTextSensorMapped = uyat_ns.class_("UyatTextSensorMapped", text_sensor.TextSensor, cg.Component)
+UyatTextDataEncoding = uyat_ns.enum("TextDataEncoding", is_class=True)
 
-CONF_BASE64_ENCODED = "base64_encoded"
-CONF_AS_HEX = "as_hex"
+CONF_ENCODING = "encoding"
+CONF_ENCODING_PLAIN = "plain"
+CONF_ENCODING_BASE64 = "base64"
+CONF_ENCODING_HEX = "hex"
 
 CONF_TYPE_TEXT = "text"
 CONF_TYPE_MAPPED = "mapped"
@@ -27,6 +30,12 @@ MAPPED_TEXT_SENSOR_DP_TYPES = [
     DPTYPE_BOOL,
     DPTYPE_UINT,
 ]
+
+TEXT_ENCODINGS = {
+    CONF_ENCODING_PLAIN: UyatTextDataEncoding.PLAIN,
+    CONF_ENCODING_BASE64: UyatTextDataEncoding.AS_BASE64,
+    CONF_ENCODING_HEX: UyatTextDataEncoding.AS_HEX,
+}
 
 def ensure_option_map(value):
     cv.check_not_templatable(value)
@@ -58,8 +67,7 @@ CONFIG_SCHEMA = cv.typed_schema(
                         ),
                     })
                 ),
-                cv.Optional(CONF_BASE64_ENCODED, default=False): cv.boolean,
-                cv.Optional(CONF_AS_HEX, default=False): cv.boolean,
+                cv.Optional(CONF_ENCODING, default=CONF_ENCODING_PLAIN): cv.enum(TEXT_ENCODINGS, lower=True),
             }
         )
         .extend(cv.COMPONENT_SCHEMA),
@@ -97,13 +105,13 @@ async def to_code(config):
     if config[CONF_TYPE] == CONF_TYPE_TEXT:
         dp_config = config[CONF_SENSOR_DATAPOINT]
         if not isinstance(dp_config, dict):
-            cg.add(var.configure_string_dp(dp_config, config[CONF_BASE64_ENCODED], config[CONF_AS_HEX]))
+            cg.add(var.configure_string_dp(dp_config, config[CONF_ENCODING]))
         else:
             if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_RAW:
-                cg.add(var.configure_raw_dp(dp_config[CONF_NUMBER], config[CONF_BASE64_ENCODED], config[CONF_AS_HEX]))
+                cg.add(var.configure_raw_dp(dp_config[CONF_NUMBER], config[CONF_ENCODING]))
             elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_STRING:
                 paren = await cg.get_variable(config[CONF_UYAT_ID])
-                cg.add(var.configure_string_dp(dp_config[CONF_NUMBER], config[CONF_BASE64_ENCODED], config[CONF_AS_HEX]))
+                cg.add(var.configure_string_dp(dp_config[CONF_NUMBER], config[CONF_ENCODING]))
     if config[CONF_TYPE] == CONF_TYPE_MAPPED:
         dp_config = config[CONF_SENSOR_DATAPOINT]
         if not isinstance(dp_config, dict):

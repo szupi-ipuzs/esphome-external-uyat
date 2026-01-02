@@ -4,7 +4,7 @@
 #include "esphome/components/text_sensor/text_sensor.h"
 
 #include "../uyat.h"
-#include "../dp_text_sensor.h"
+#include "../dp_text.h"
 
 namespace esphome {
 namespace uyat {
@@ -17,14 +17,14 @@ class UyatTextSensor : public text_sensor::TextSensor, public Component {
  public:
   void setup() override;
   void dump_config() override;
-  void configure_raw_dp(const uint8_t dp_id, const bool base64_encoded = false, const bool as_hex = false);
-  void configure_string_dp(const uint8_t dp_id, const bool base64_encoded = false, const bool as_hex = false);
+  void configure_raw_dp(const uint8_t dp_id, const TextDataEncoding encoding);
+  void configure_string_dp(const uint8_t dp_id, const TextDataEncoding encoding);
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 
  protected:
   Uyat *parent_;
-  std::optional<DpTextSensor> dp_text_sensor_;
+  std::optional<DpText> dp_text_;
 };
 
 }  // namespace uyat

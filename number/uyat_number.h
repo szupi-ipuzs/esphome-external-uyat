@@ -18,6 +18,7 @@ class UyatNumber : public number::Number, public Component {
  public:
   void setup() override;
   void dump_config() override;
+  void configure_any_dp(const uint8_t dp_id, const uint8_t scale = 0);
   void configure_bool_dp(const uint8_t dp_id, const uint8_t scale = 0);
   void configure_uint_dp(const uint8_t dp_id, const uint8_t scale = 0);
   void configure_enum_dp(const uint8_t dp_id, const uint8_t scale = 0);

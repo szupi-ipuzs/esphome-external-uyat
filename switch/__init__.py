@@ -3,7 +3,7 @@ from esphome.components import switch
 import esphome.config_validation as cv
 from esphome.const import CONF_SWITCH_DATAPOINT, CONF_NUMBER
 
-from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, uyat_ns, Uyat, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM
+from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, uyat_ns, Uyat, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_DETECT
 
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@szupi_ipuzs"]
@@ -11,6 +11,7 @@ CODEOWNERS = ["@szupi_ipuzs"]
 UyatSwitch = uyat_ns.class_("UyatSwitch", switch.Switch, cg.Component)
 
 SWITCH_DP_TYPES = [
+    DPTYPE_DETECT,
     DPTYPE_BOOL,
     DPTYPE_UINT,
     DPTYPE_ENUM
@@ -25,7 +26,7 @@ CONFIG_SCHEMA = (
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
-                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
                         *SWITCH_DP_TYPES, lower=True
                     )
                 })
@@ -45,7 +46,7 @@ async def to_code(config):
 
     dp_config = config[CONF_SWITCH_DATAPOINT]
     if not isinstance(dp_config, dict):
-        cg.add(var.configure_bool_dp(dp_config))
+        cg.add(var.configure_any_dp(dp_config))
     else:
         if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BOOL:
             cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER]))
@@ -53,3 +54,5 @@ async def to_code(config):
             cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER]))
         elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ENUM:
             cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER]))
+        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_DETECT:
+            cg.add(var.configure_any_dp(dp_config[CONF_NUMBER]))

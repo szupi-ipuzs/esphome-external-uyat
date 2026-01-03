@@ -7,6 +7,11 @@ namespace uyat {
 
 static const char *const TAG = "uyat.binary_sensor";
 
+void UyatBinarySensor::configure_any_dp(const uint8_t dp_id)
+{
+  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_any([this](const bool value){on_value(value);}, dp_id)));
+}
+
 void UyatBinarySensor::configure_bool_dp(const uint8_t dp_id)
 {
   this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_bool([this](const bool value){on_value(value);}, dp_id)));

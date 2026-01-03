@@ -92,7 +92,7 @@ struct DpBinarySensor
 
    static DpBinarySensor create_for_any(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
    {
-      return DpBinarySensor(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN, UyatDatapointType::INTEGER, UyatDatapointType::ENUM, UyatDatapointType::BITMAP}}, 0, inverted);
+      return DpBinarySensor(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN, UyatDatapointType::INTEGER, UyatDatapointType::ENUM}}, 0, inverted);
    }
 
    static DpBinarySensor create_for_bool(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)

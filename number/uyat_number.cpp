@@ -8,6 +8,11 @@ namespace uyat {
 
 static const char *const TAG = "uyat.number";
 
+void UyatNumber::configure_any_dp(const uint8_t dp_id, const uint8_t scale)
+{
+  this->dp_number_.emplace(std::move(DpNumber::create_for_any([this](const float value){on_value(value);}, dp_id, 0, scale)));
+}
+
 void UyatNumber::configure_bool_dp(const uint8_t dp_id, const uint8_t scale)
 {
   this->dp_number_.emplace(std::move(DpNumber::create_for_bool([this](const float value){on_value(value);}, dp_id, 0, scale)));

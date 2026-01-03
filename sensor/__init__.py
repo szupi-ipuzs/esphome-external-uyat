@@ -3,7 +3,7 @@ from esphome.components import sensor
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_SENSOR_DATAPOINT, CONF_NUMBER, CONF_TYPE
 
-from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, DPTYPE_ANY, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_BITMAP
+from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, DPTYPE_ANY, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_BITMAP, DPTYPE_DETECT
 
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@szupi_ipuzs"]
@@ -26,7 +26,7 @@ CONF_TYPE_NUMBER = "number"
 CONF_TYPE_VAP = "vap"
 
 SENSOR_DP_TYPES = [
-    DPTYPE_ANY,
+    DPTYPE_DETECT,
     DPTYPE_BOOL,
     DPTYPE_UINT,
     DPTYPE_ENUM,
@@ -43,7 +43,7 @@ CONFIG_SCHEMA = cv.typed_schema(
                     cv.Schema(
                     {
                         cv.Required(CONF_NUMBER): cv.uint8_t,
-                        cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_ANY): cv.one_of(
+                        cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
                             *SENSOR_DP_TYPES, lower=True
                         )
                     })
@@ -81,7 +81,7 @@ async def to_code(config):
         if not isinstance(dp_config, dict):
             cg.add(var.configure_any_dp(dp_config))
         else:
-            if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ANY:
+            if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_DETECT:
                 cg.add(var.configure_any_dp(dp_config[CONF_NUMBER]))
             elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BITMAP:
                 cg.add(var.configure_bitmap_dp(dp_config[CONF_NUMBER]))

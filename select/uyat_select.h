@@ -21,6 +21,7 @@ class UyatSelect : public select::Select, public Component {
   void setup() override;
   void dump_config() override;
 
+  void configure_any_dp(const uint8_t dp_id);
   void configure_bool_dp(const uint8_t dp_id);
   void configure_uint_dp(const uint8_t dp_id);
   void configure_enum_dp(const uint8_t dp_id);

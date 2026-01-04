@@ -25,6 +25,8 @@ BINARY_SENSOR_DP_TYPES = [
 def _validate(config):
     dp_config = config[CONF_SENSOR_DATAPOINT]
     if not isinstance(dp_config, dict):
+        if CONF_BIT_NUMBER in dp_config:
+            raise cv.Invalid(f"{CONF_BIT_NUMBER} requires setting datapoint type to {DPTYPE_BITMAP}")
         return config
 
     dp_type = dp_config.get(CONF_DATAPOINT_TYPE)
@@ -33,7 +35,7 @@ def _validate(config):
             raise cv.Invalid(f"{CONF_BIT_NUMBER} is required for datapoint type {DPTYPE_BITMAP}")
     else:
         if CONF_BIT_NUMBER in dp_config:
-            raise cv.Invalid(f"{CONF_BIT_NUMBER} is only valid for datapoint type {DPTYPE_BITMAP}")
+            raise cv.Invalid(f"{CONF_BIT_NUMBER} requires setting datapoint type to {DPTYPE_BITMAP}")
 
     return config
 

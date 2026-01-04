@@ -59,20 +59,27 @@ def _validate_extended_datapoint_schema(config):
     return config
 
 
-CONFIG_BUTTON_EXTENDED_DATAPOINT_SCHEMA = cv.All(
-    cv.Schema(
+CONFIG_BUTTON_EXTENDED_DATAPOINT_SCHEMA = cv.typed_schema(
     {
-        cv.Required(CONF_NUMBER): cv.uint8_t,
-        cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
-            *BUTTON_DP_TYPES, lower=True
-        ),
-        cv.Optional(CONF_TRIGGER_PAYLOAD): cv.Any(
-            cv.boolean,
-            cv.uint32_t,
-            cv.uint8_t
-        ),
-    }),
-    _validate_extended_datapoint_schema
+        DPTYPE_BOOL: cv.Schema(
+        {
+            cv.Required(CONF_NUMBER): cv.uint8_t,
+            cv.Optional(CONF_TRIGGER_PAYLOAD): cv.boolean,
+        }),
+        DPTYPE_UINT: cv.Schema(
+        {
+            cv.Required(CONF_NUMBER): cv.uint8_t,
+            cv.Optional(CONF_TRIGGER_PAYLOAD): cv.uint32_t,
+        }),
+        DPTYPE_ENUM: cv.Schema(
+        {
+            cv.Required(CONF_NUMBER): cv.uint8_t,
+            cv.Optional(CONF_TRIGGER_PAYLOAD): cv.uint8_t,
+        }),
+    },
+    default_type = DPTYPE_BOOL,
+    key = CONF_DATAPOINT_TYPE,
+    lower=True,
 )
 
 CONFIG_SCHEMA = cv.All(
@@ -80,10 +87,7 @@ CONFIG_SCHEMA = cv.All(
     .extend(
         {
             cv.GenerateID(CONF_UYAT_ID): cv.use_id(Uyat),
-            cv.Required(CONF_BUTTON_DATAPOINT): cv.Any(
-                cv.uint8_t,
-                CONFIG_BUTTON_EXTENDED_DATAPOINT_SCHEMA
-            ),
+            cv.Required(CONF_BUTTON_DATAPOINT): CONFIG_BUTTON_EXTENDED_DATAPOINT_SCHEMA,
         }
     )
     .extend(cv.COMPONENT_SCHEMA),
@@ -97,30 +101,21 @@ async def to_code(config):
     cg.add(var.set_uyat_parent(paren))
 
     dp_config = config.get(CONF_BUTTON_DATAPOINT)
-    if not isinstance(dp_config, dict):
+    dp_type = dp_config.get(CONF_DATAPOINT_TYPE, None)
+    payload_config = dp_config.get(CONF_TRIGGER_PAYLOAD, None)
+    if dp_type==DPTYPE_BOOL:
         UyatDatapointValue = cg.StructInitializer(
-            BoolDatapointValue, ("value", True)
+            BoolDatapointValue, ("value", payload_config)
         )
-        UyatDatapointStruct = cg.StructInitializer(
-            UyatDatapoint, ("number", dp_config), ("value", UyatDatapointValue)
+    if dp_type==DPTYPE_UINT:
+        UyatDatapointValue = cg.StructInitializer(
+            UIntDatapointValue, ("value", payload_config)
         )
-        cg.add(var.set_trigger_payload(UyatDatapointStruct))
-    else:
-        dp_type = dp_config.get(CONF_DATAPOINT_TYPE, None)
-        payload_config = dp_config.get(CONF_TRIGGER_PAYLOAD, None)
-        if dp_type==DPTYPE_BOOL:
-            UyatDatapointValue = cg.StructInitializer(
-                BoolDatapointValue, ("value", payload_config)
-            )
-        if dp_type==DPTYPE_UINT:
-            UyatDatapointValue = cg.StructInitializer(
-                UIntDatapointValue, ("value", payload_config)
-            )
-        if dp_type==DPTYPE_ENUM:
-            UyatDatapointValue = cg.StructInitializer(
-                EnumDatapointValue, ("value", payload_config)
-            )
-        UyatDatapointStruct = cg.StructInitializer(
-            UyatDatapoint, ("number", dp_config[CONF_NUMBER]), ("value", UyatDatapointValue)
+    if dp_type==DPTYPE_ENUM:
+        UyatDatapointValue = cg.StructInitializer(
+            EnumDatapointValue, ("value", payload_config)
         )
-        cg.add(var.set_trigger_payload(UyatDatapointStruct))
+    UyatDatapointStruct = cg.StructInitializer(
+        UyatDatapoint, ("number", dp_config[CONF_NUMBER]), ("value", UyatDatapointValue)
+    )
+    cg.add(var.set_trigger_payload(UyatDatapointStruct))

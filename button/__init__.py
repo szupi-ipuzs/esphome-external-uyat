@@ -64,17 +64,17 @@ CONFIG_BUTTON_EXTENDED_DATAPOINT_SCHEMA = cv.typed_schema(
         DPTYPE_BOOL: cv.Schema(
         {
             cv.Required(CONF_NUMBER): cv.uint8_t,
-            cv.Optional(CONF_TRIGGER_PAYLOAD): cv.boolean,
+            cv.Required(CONF_TRIGGER_PAYLOAD): cv.boolean,
         }),
         DPTYPE_UINT: cv.Schema(
         {
             cv.Required(CONF_NUMBER): cv.uint8_t,
-            cv.Optional(CONF_TRIGGER_PAYLOAD): cv.uint32_t,
+            cv.Required(CONF_TRIGGER_PAYLOAD): cv.uint32_t,
         }),
         DPTYPE_ENUM: cv.Schema(
         {
             cv.Required(CONF_NUMBER): cv.uint8_t,
-            cv.Optional(CONF_TRIGGER_PAYLOAD): cv.uint8_t,
+            cv.Required(CONF_TRIGGER_PAYLOAD): cv.uint8_t,
         }),
     },
     default_type = DPTYPE_BOOL,

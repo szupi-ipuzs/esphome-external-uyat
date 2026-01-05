@@ -17,7 +17,7 @@ struct DpSwitch
    {
       handler_ = &handler;
       this->handler_->register_datapoint_listener(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpSwitch::TAG, "%s processing as switch", datapoint.to_string());
+         ESP_LOGV(DpSwitch::TAG, "%s processing as switch", datapoint.to_string().c_str());
 
          if (!matching_dp_.matches(datapoint.get_type()))
          {
@@ -78,7 +78,11 @@ struct DpSwitch
 
    void set_value(const bool value, const bool force = false)
    {
-      assert(handler_);
+      if (this->handler_ == nullptr)
+      {
+         ESP_LOGE(DpSwitch::TAG, "DatapointHandler not initialized for %s", this->config_to_string().c_str());
+         return;
+      }
 
       this->set_value_ = value;
       if (!this->matching_dp_.allows_single_type())
@@ -98,28 +102,8 @@ struct DpSwitch
       else
       if (this->matching_dp_.matches(UyatDatapointType::ENUM))
       {
-         handler_->set_datapoint_value(UyatDatapoint{this->matching_dp_.number, UIntDatapointValue{invert_if_needed(value)? 0x01u : 0x00u}}, force);
+         handler_->set_datapoint_value(UyatDatapoint{this->matching_dp_.number, EnumDatapointValue{invert_if_needed(value)? 0x01 : 0x00}}, force);
       }
-   }
-
-   static DpSwitch create_for_any(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpSwitch(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN, UyatDatapointType::INTEGER, UyatDatapointType::ENUM}}, inverted);
-   }
-
-   static DpSwitch create_for_bool(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpSwitch(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN}}, inverted);
-   }
-
-   static DpSwitch create_for_uint(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpSwitch(callback, MatchingDatapoint{dp_id, {UyatDatapointType::INTEGER}}, inverted);
-   }
-
-   static DpSwitch create_for_enum(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpSwitch(callback, MatchingDatapoint{dp_id, {UyatDatapointType::ENUM}}, inverted);
    }
 
    DpSwitch(DpSwitch&&) = default;

@@ -148,12 +148,11 @@ struct UIntDatapointValue {
 
   std::vector<uint8_t> to_payload() const
   {
-    const auto converted = convert_big_endian(value);
     return std::vector<uint8_t>{
-      static_cast<uint8_t>(converted >> 24),
-      static_cast<uint8_t>(converted >> 16),
-      static_cast<uint8_t>(converted >> 8),
-      static_cast<uint8_t>(converted >> 0),
+      static_cast<uint8_t>(value >> 24),
+      static_cast<uint8_t>(value >> 16),
+      static_cast<uint8_t>(value >> 8),
+      static_cast<uint8_t>(value >> 0),
     };
   }
 
@@ -229,20 +228,18 @@ struct BitmapDatapointValue {
     }
     else if (value <= 0xFFFFu)
     {
-      const auto converted = convert_big_endian(static_cast<uint16_t>(value));
       return std::vector<uint8_t>{
-        static_cast<uint8_t>(converted >> 8),
-        static_cast<uint8_t>(converted >> 0),
+        static_cast<uint8_t>(value >> 8),
+        static_cast<uint8_t>(value >> 0),
       };
     }
     else if (value <= 0xFFFFFFFFu)
     {
-      const auto converted = convert_big_endian(static_cast<uint32_t>(value));
       return std::vector<uint8_t>{
-        static_cast<uint8_t>(converted >> 24),
-        static_cast<uint8_t>(converted >> 16),
-        static_cast<uint8_t>(converted >> 8),
-        static_cast<uint8_t>(converted >> 0),
+        static_cast<uint8_t>(value >> 24),
+        static_cast<uint8_t>(value >> 16),
+        static_cast<uint8_t>(value >> 8),
+        static_cast<uint8_t>(value >> 0),
       };
     }
     return {};

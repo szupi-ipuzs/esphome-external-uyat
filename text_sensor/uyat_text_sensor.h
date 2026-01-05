@@ -17,9 +17,11 @@ class UyatTextSensor : public text_sensor::TextSensor, public Component {
  public:
   void setup() override;
   void dump_config() override;
-  void configure_any_dp(const uint8_t dp_id, const TextDataEncoding encoding);
-  void configure_raw_dp(const uint8_t dp_id, const TextDataEncoding encoding);
-  void configure_string_dp(const uint8_t dp_id, const TextDataEncoding encoding);
+  void configure(MatchingDatapoint text_dp, const TextDataEncoding encoding){
+    this->dp_text_.emplace([this](const std::string& value){this->on_value(value);},
+                            std::move(text_dp),
+                            encoding);
+  }
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 

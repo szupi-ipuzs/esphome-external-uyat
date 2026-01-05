@@ -14,26 +14,6 @@ void UyatSwitch::setup() {
   this->dp_switch_->init(*(this->parent_));
 }
 
-void UyatSwitch::configure_any_dp(const uint8_t dp_id)
-{
-  this->dp_switch_.emplace(std::move(DpSwitch::create_for_any([this](const bool value){on_value(value);}, dp_id)));
-}
-
-void UyatSwitch::configure_bool_dp(const uint8_t dp_id)
-{
-  this->dp_switch_.emplace(std::move(DpSwitch::create_for_bool([this](const bool value){on_value(value);}, dp_id)));
-}
-
-void UyatSwitch::configure_uint_dp(const uint8_t dp_id)
-{
-  this->dp_switch_.emplace(std::move(DpSwitch::create_for_uint([this](const bool value){on_value(value);}, dp_id)));
-}
-
-void UyatSwitch::configure_enum_dp(const uint8_t dp_id)
-{
-  this->dp_switch_.emplace(std::move(DpSwitch::create_for_enum([this](const bool value){on_value(value);}, dp_id)));
-}
-
 void UyatSwitch::write_state(bool state) {
   ESP_LOGV(TAG, "Setting %s to %s", get_object_id().c_str(), ONOFF(state));
   this->dp_switch_->set_value(state);

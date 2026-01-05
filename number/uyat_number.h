@@ -18,10 +18,11 @@ class UyatNumber : public number::Number, public Component {
  public:
   void setup() override;
   void dump_config() override;
-  void configure_any_dp(const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f);
-  void configure_bool_dp(const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f);
-  void configure_uint_dp(const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f);
-  void configure_enum_dp(const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f);
+  void configure(MatchingDatapoint number_dp, const float offset = 0.0f, const float multiplier = 1.0f){
+    this->dp_number_.emplace([this](const float value){this->on_value(value);},
+                             std::move(number_dp),
+                             offset, multiplier);
+  }
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 

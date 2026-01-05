@@ -8,21 +8,6 @@ namespace uyat {
 
 static const char *const TAG = "uyat.text_sensor";
 
-void UyatTextSensor::configure_any_dp(const uint8_t dp_id, const TextDataEncoding encoding)
-{
-  this->dp_text_.emplace(std::move(DpText::create_for_any([this](const std::string& value){on_value(value);}, dp_id, encoding)));
-}
-
-void UyatTextSensor::configure_raw_dp(const uint8_t dp_id, const TextDataEncoding encoding)
-{
-  this->dp_text_.emplace(std::move(DpText::create_for_raw([this](const std::string& value){on_value(value);}, dp_id, encoding)));
-}
-
-void UyatTextSensor::configure_string_dp(const uint8_t dp_id, const TextDataEncoding encoding)
-{
-  this->dp_text_.emplace(std::move(DpText::create_for_string([this](const std::string& value){on_value(value);}, dp_id, encoding)));
-}
-
 void UyatTextSensor::setup() {
   assert(this->parent_);
   this->dp_text_->init(*(this->parent_));

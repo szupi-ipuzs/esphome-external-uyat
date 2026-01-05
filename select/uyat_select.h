@@ -21,10 +21,11 @@ class UyatSelect : public select::Select, public Component {
   void setup() override;
   void dump_config() override;
 
-  void configure_any_dp(const uint8_t dp_id);
-  void configure_bool_dp(const uint8_t dp_id);
-  void configure_uint_dp(const uint8_t dp_id);
-  void configure_enum_dp(const uint8_t dp_id);
+  void configure(MatchingDatapoint select_dp){
+    this->dp_number_.emplace([this](const float value){this->on_value(value);},
+                             std::move(select_dp),
+                             0, 1.0f);
+  }
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
   void set_optimistic(bool optimistic) { this->optimistic_ = optimistic; }

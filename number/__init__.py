@@ -5,13 +5,23 @@ from esphome.const import (
     CONF_ID,
     CONF_MAX_VALUE,
     CONF_MIN_VALUE,
-    CONF_NUMBER_DATAPOINT,
     CONF_STEP,
     CONF_NUMBER,
     CONF_OFFSET
 )
 
-from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_DETECT
+from .. import (
+   CONF_UYAT_ID,
+   CONF_DATAPOINT,
+   CONF_DATAPOINT_TYPE,
+   Uyat,
+   uyat_ns,
+   DPTYPE_BOOL,
+   DPTYPE_UINT,
+   DPTYPE_ENUM,
+   DPTYPE_DETECT,
+   matching_datapoint_from_config
+)
 
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@szupi_ipuzs"]
@@ -50,7 +60,7 @@ CONFIG_SCHEMA = cv.All(
     .extend(
         {
             cv.GenerateID(CONF_UYAT_ID): cv.use_id(Uyat),
-            cv.Required(CONF_NUMBER_DATAPOINT): cv.Any(cv.uint8_t,
+            cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
@@ -92,15 +102,4 @@ async def to_code(config):
     elif CONF_SCALE in config:
         multiplier = 10 ** config[CONF_SCALE]
 
-    dp_config = config[CONF_NUMBER_DATAPOINT]
-    if not isinstance(dp_config, dict):
-        cg.add(var.configure_any_dp(dp_config, config[CONF_OFFSET], multiplier))
-    else:
-        if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BOOL:
-            cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))
-        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_UINT:
-            cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))
-        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ENUM:
-            cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))
-        elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_DETECT:
-            cg.add(var.configure_any_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))
+    cg.add(var.configure(await matching_datapoint_from_config(config[CONF_DATAPOINT], NUMBER_DP_TYPES), config[CONF_OFFSET], multiplier))

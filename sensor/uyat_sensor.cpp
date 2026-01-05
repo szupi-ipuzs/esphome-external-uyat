@@ -7,31 +7,6 @@ namespace esphome::uyat
 
 static const char *const TAG = "uyat.sensor";
 
-void UyatSensor::configure_any_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_any([this](const float value){on_value(value);}, dp_id)));
-}
-
-void UyatSensor::configure_bool_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_bool([this](const float value){on_value(value);}, dp_id)));
-}
-
-void UyatSensor::configure_uint_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_uint([this](const float value){on_value(value);}, dp_id)));
-}
-
-void UyatSensor::configure_enum_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_enum([this](const float value){on_value(value);}, dp_id)));
-}
-
-void UyatSensor::configure_bitmap_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_bitmap([this](const float value){on_value(value);}, dp_id)));
-}
-
 void UyatSensor::setup() {
   assert(this->parent_);
   this->dp_number_->init(*(this->parent_));

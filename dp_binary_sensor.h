@@ -16,7 +16,7 @@ struct DpBinarySensor
    void init(DatapointHandler& handler)
    {
       handler.register_datapoint_listener(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpBinarySensor::TAG, "%s processing as binary sensor", datapoint.to_string());
+         ESP_LOGV(DpBinarySensor::TAG, "%s processing as binary sensor", datapoint.to_string().c_str());
 
          if (!matching_dp_.matches(datapoint.get_type()))
          {
@@ -87,38 +87,14 @@ struct DpBinarySensor
 
    std::string config_to_string() const
    {
-      return str_sprintf("%s%s", this->inverted_? "Inverted " : "", this->matching_dp_.to_string().c_str());
-   }
-
-   static DpBinarySensor create_for_any(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpBinarySensor(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN, UyatDatapointType::INTEGER, UyatDatapointType::ENUM}}, 0, inverted);
-   }
-
-   static DpBinarySensor create_for_bool(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpBinarySensor(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN}}, 0, inverted);
-   }
-
-   static DpBinarySensor create_for_uint(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpBinarySensor(callback, MatchingDatapoint{dp_id, {UyatDatapointType::INTEGER}}, 0, inverted);
-   }
-
-   static DpBinarySensor create_for_enum(const OnValueCallback& callback, const uint8_t dp_id, const bool inverted = false)
-   {
-      return DpBinarySensor(callback, MatchingDatapoint{dp_id, {UyatDatapointType::ENUM}}, 0, inverted);
-   }
-
-   static DpBinarySensor create_for_bitmap(const OnValueCallback& callback, const uint8_t dp_id, const uint8_t bit_number, const bool inverted = false)
-   {
-      return DpBinarySensor(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BITMAP}}, bit_number, inverted);
+      return str_sprintf("%s%s%s",
+         this->inverted_? "Inverted " : "",
+         this->matching_dp_.to_string().c_str(),
+         this->matching_dp_.matches(UyatDatapointType::BITMAP)? str_sprintf(", bit %u", this->bit_number_).c_str() : ""  );
    }
 
    DpBinarySensor(DpBinarySensor&&) = default;
    DpBinarySensor& operator=(DpBinarySensor&&) = default;
-
-private:
 
    DpBinarySensor(const OnValueCallback& callback, MatchingDatapoint&& matching_dp, const uint8_t bit_number, const bool inverted):
    callback_(callback),
@@ -126,6 +102,8 @@ private:
    bit_number_(bit_number),
    inverted_(inverted)
    {}
+
+private:
 
    OnValueCallback callback_;
    MatchingDatapoint matching_dp_;

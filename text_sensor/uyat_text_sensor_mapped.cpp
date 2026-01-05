@@ -8,26 +8,6 @@ namespace uyat {
 
 static const char *const TAG = "uyat.text_sensor_mapped";
 
-void UyatTextSensorMapped::configure_any_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_any([this](const float value){on_value(value);}, dp_id)));
-}
-
-void UyatTextSensorMapped::configure_bool_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_bool([this](const float value){on_value(value);}, dp_id)));
-}
-
-void UyatTextSensorMapped::configure_uint_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_uint([this](const float value){on_value(value);}, dp_id)));
-}
-
-void UyatTextSensorMapped::configure_enum_dp(const uint8_t dp_id)
-{
-  this->dp_number_.emplace(std::move(DpNumber::create_for_enum([this](const float value){on_value(value);}, dp_id)));
-}
-
 void UyatTextSensorMapped::setup() {
   assert(this->parent_);
   this->dp_number_->init(*(this->parent_));

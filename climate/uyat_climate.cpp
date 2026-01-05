@@ -13,12 +13,15 @@ void UyatClimate::on_switch_value(const bool value)
   ESP_LOGV(TAG, "Switch of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
   this->mode = climate::CLIMATE_MODE_OFF;
 
-  if (this->supports_heat_ && this->supports_cool_) {
-    this->mode = climate::CLIMATE_MODE_HEAT_COOL;
-  } else if (this->supports_heat_) {
-    this->mode = climate::CLIMATE_MODE_HEAT;
-  } else if (this->supports_cool_) {
-    this->mode = climate::CLIMATE_MODE_COOL;
+  if (value)
+  {
+    if (this->supports_heat_ && this->supports_cool_) {
+      this->mode = climate::CLIMATE_MODE_HEAT_COOL;
+    } else if (this->supports_heat_) {
+      this->mode = climate::CLIMATE_MODE_HEAT;
+    } else if (this->supports_cool_) {
+      this->mode = climate::CLIMATE_MODE_COOL;
+    }
   }
 
   this->compute_state_();
@@ -182,9 +185,8 @@ void UyatClimate::loop() {
 }
 
 void UyatClimate::control(const climate::ClimateCall &call) {
-  auto mode = call.get_mode();
-  if (mode.has_value()) {
-    const bool switch_state = *mode != climate::CLIMATE_MODE_OFF;
+  if (call.get_mode().has_value()) {
+    const bool switch_state = *call.get_mode() != climate::CLIMATE_MODE_OFF;
     ESP_LOGV(TAG, "Setting switch: %s", ONOFF(switch_state));
     this->dp_switch_->set_value(switch_state);
     const climate::ClimateMode new_mode = *call.get_mode();

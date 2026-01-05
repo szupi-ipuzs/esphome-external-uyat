@@ -1,9 +1,22 @@
 import esphome.codegen as cg
 from esphome.components import text_sensor
 import esphome.config_validation as cv
-from esphome.const import CONF_SENSOR_DATAPOINT, CONF_NUMBER, CONF_OPTIONS, CONF_TYPE
+from esphome.const import CONF_NUMBER, CONF_OPTIONS, CONF_TYPE
 
-from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, DPTYPE_RAW, DPTYPE_STRING, DPTYPE_ENUM, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_DETECT
+from .. import (
+    CONF_UYAT_ID,
+    CONF_DATAPOINT,
+    CONF_DATAPOINT_TYPE,
+    Uyat,
+    uyat_ns,
+    DPTYPE_RAW,
+    DPTYPE_STRING,
+    DPTYPE_ENUM,
+    DPTYPE_BOOL,
+    DPTYPE_UINT,
+    DPTYPE_DETECT,
+    matching_datapoint_from_config
+)
 
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@szupi_ipuzs"]
@@ -60,7 +73,7 @@ CONFIG_SCHEMA = cv.typed_schema(
             {
                 cv.GenerateID(): cv.declare_id(UyatTextSensor),
                 cv.GenerateID(CONF_UYAT_ID): cv.use_id(Uyat),
-                cv.Required(CONF_SENSOR_DATAPOINT): cv.Any(cv.uint8_t,
+                cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
                     cv.Schema(
                     {
                         cv.Required(CONF_NUMBER): cv.uint8_t,
@@ -79,7 +92,7 @@ CONFIG_SCHEMA = cv.typed_schema(
             {
                 cv.GenerateID(): cv.declare_id(UyatTextSensorMapped),
                 cv.GenerateID(CONF_UYAT_ID): cv.use_id(Uyat),
-                cv.Required(CONF_SENSOR_DATAPOINT): cv.Any(cv.uint8_t,
+                cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
                     cv.Schema(
                     {
                         cv.Required(CONF_NUMBER): cv.uint8_t,
@@ -105,32 +118,9 @@ async def to_code(config):
     cg.add(var.set_uyat_parent(paren))
 
     if config[CONF_TYPE] == CONF_TYPE_TEXT:
-        dp_config = config[CONF_SENSOR_DATAPOINT]
-        if not isinstance(dp_config, dict):
-            cg.add(var.configure_any_dp(dp_config, config[CONF_ENCODING]))
-        else:
-            if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_RAW:
-                cg.add(var.configure_raw_dp(dp_config[CONF_NUMBER], config[CONF_ENCODING]))
-            elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_STRING:
-                paren = await cg.get_variable(config[CONF_UYAT_ID])
-                cg.add(var.configure_string_dp(dp_config[CONF_NUMBER], config[CONF_ENCODING]))
-            elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_DETECT:
-                paren = await cg.get_variable(config[CONF_UYAT_ID])
-                cg.add(var.configure_any_dp(dp_config[CONF_NUMBER], config[CONF_ENCODING]))
+        cg.add(var.configure(await matching_datapoint_from_config(config[CONF_DATAPOINT], TEXT_SENSOR_DP_TYPES), config[CONF_ENCODING]))
     if config[CONF_TYPE] == CONF_TYPE_MAPPED:
-        dp_config = config[CONF_SENSOR_DATAPOINT]
-        if not isinstance(dp_config, dict):
-            cg.add(var.configure_any_dp(dp_config))
-        else:
-            if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BOOL:
-                cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER]))
-            elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ENUM:
-                cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER]))
-            elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_UINT:
-                cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER]))
-            elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_DETECT:
-                cg.add(var.configure_any_dp(dp_config[CONF_NUMBER]))
-
+        cg.add(var.configure(await matching_datapoint_from_config(config[CONF_DATAPOINT], TEXT_SENSOR_DP_TYPES)))
         options_map = config[CONF_OPTIONS]
         for option, mapping in options_map.items():
             cg.add(var.add_mapping(option, mapping))

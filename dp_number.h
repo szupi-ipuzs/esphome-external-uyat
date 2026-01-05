@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-#include <assert.h>
 
 #include "uyat_datapoint_types.h"
 
@@ -18,7 +17,7 @@ struct DpNumber
    {
       handler_ = &handler;
       handler.register_datapoint_listener(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpNumber::TAG, "%s processing as sensor", datapoint.to_string());
+         ESP_LOGV(DpNumber::TAG, "%s processing as sensor", datapoint.to_string().c_str());
 
          if (!matching_dp_.matches(datapoint.get_type()))
          {
@@ -79,10 +78,15 @@ struct DpNumber
 
    void set_value(const float value)
    {
-      assert(this->handler_ != nullptr);
+      if (this->handler_ == nullptr)
+      {
+         ESP_LOGE(DpNumber::TAG, "DatapointHandler not initialized for %s", this->config_to_string().c_str());
+         return;
+      }
+
       ESP_LOGV(DpNumber::TAG, "Setting value to %.3f for %s", value, this->config_to_string().c_str());
       this->set_value_ = value;
-      uint32_t raw_value = static_cast<uint32_t>((lround(value / this->multiplier_) - (this->offset_)));
+      uint32_t raw_value = static_cast<uint32_t>(lround((value - this->offset_)* this->multiplier_));
       if (!this->matching_dp_.allows_single_type())
       {
          ESP_LOGW(DpNumber::TAG, "Cannot set value, datapoint type not yet known for %s", this->matching_dp_.to_string().c_str());
@@ -128,31 +132,6 @@ struct DpNumber
       return str_sprintf("%s, offset=%.2f, multiplier=%.2f", this->matching_dp_.to_string().c_str(), this->offset_, this->multiplier_);
    }
 
-   static DpNumber create_for_any(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
-   {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN, UyatDatapointType::INTEGER, UyatDatapointType::ENUM, UyatDatapointType::BITMAP}}, offset, multiplier);
-   }
-
-   static DpNumber create_for_bool(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
-   {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN}}, offset, multiplier);
-   }
-
-   static DpNumber create_for_uint(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
-   {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::INTEGER}}, offset, multiplier);
-   }
-
-   static DpNumber create_for_enum(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
-   {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::ENUM}}, offset, multiplier);
-   }
-
-   static DpNumber create_for_bitmap(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
-   {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BITMAP}}, offset, multiplier);
-   }
-
    DpNumber(DpNumber&&) = default;
    DpNumber& operator=(DpNumber&&) = default;
 
@@ -167,7 +146,7 @@ private:
 
    float calculate_logical_value(const uint32_t value) const
    {
-      return (float(value) + this->offset_) * this->multiplier_;
+      return (float(value) / this->multiplier_) + this->offset_;
    }
 
    OnValueCallback callback_;

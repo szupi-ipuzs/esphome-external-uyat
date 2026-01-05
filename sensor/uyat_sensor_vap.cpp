@@ -7,12 +7,6 @@ namespace esphome::uyat
 
 static const char *const TAG = "uyat.sensorVAP";
 
-void UyatSensorVAP::configure_raw_dp(const uint8_t dp_id, const UyatVAPValueType value_type)
-{
-  this->value_type_ = value_type;
-  this->dp_vap_.emplace(std::move(DpVAP::create_for_raw([this](const DpVAP::VAPValue& value){on_value(value);}, dp_id)));
-}
-
 void UyatSensorVAP::setup() {
   assert(this->parent_);
   this->dp_vap_->init(*(this->parent_));

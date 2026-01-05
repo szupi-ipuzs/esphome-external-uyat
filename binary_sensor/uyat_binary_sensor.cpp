@@ -7,33 +7,12 @@ namespace uyat {
 
 static const char *const TAG = "uyat.binary_sensor";
 
-void UyatBinarySensor::configure_any_dp(const uint8_t dp_id)
-{
-  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_any([this](const bool value){on_value(value);}, dp_id)));
-}
-
-void UyatBinarySensor::configure_bool_dp(const uint8_t dp_id)
-{
-  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_bool([this](const bool value){on_value(value);}, dp_id)));
-}
-
-void UyatBinarySensor::configure_uint_dp(const uint8_t dp_id)
-{
-  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_uint([this](const bool value){on_value(value);}, dp_id)));
-}
-
-void UyatBinarySensor::configure_enum_dp(const uint8_t dp_id)
-{
-  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_enum([this](const bool value){on_value(value);}, dp_id)));
-}
-
-void UyatBinarySensor::configure_bitmap_dp(const uint8_t dp_id, const uint8_t bit_number)
-{
-  this->dp_binary_sensor_.emplace(std::move(DpBinarySensor::create_for_bitmap([this](const bool value){on_value(value);}, dp_id, bit_number)));
-}
-
 void UyatBinarySensor::setup() {
-  assert(this->parent_);
+  if (!this->parent_)
+  {
+     ESP_LOGE(TAG, "Uyat parent not set for %s", this->get_object_id().c_str());
+     return;
+  }
   this->dp_binary_sensor_->init(*(this->parent_));
 }
 

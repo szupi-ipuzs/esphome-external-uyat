@@ -17,11 +17,12 @@ class UyatBinarySensor : public binary_sensor::BinarySensor, public Component {
  public:
   void setup() override;
   void dump_config() override;
-  void configure_any_dp(const uint8_t dp_id);
-  void configure_bool_dp(const uint8_t dp_id);
-  void configure_uint_dp(const uint8_t dp_id);
-  void configure_enum_dp(const uint8_t dp_id);
-  void configure_bitmap_dp(const uint8_t dp_id, const uint8_t bit_number);
+  void configure(MatchingDatapoint sensor_dp, const uint8_t bit_number = 0){
+    this->dp_binary_sensor_.emplace([this](const bool value){this->on_value(value);},
+                             std::move(sensor_dp),
+                             bit_number,
+                             false);
+  }
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 

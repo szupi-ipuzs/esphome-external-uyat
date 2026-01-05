@@ -11,7 +11,6 @@ from esphome.const import (
        CONF_TIME_ID,
        CONF_TRIGGER_ID,
        CONF_TYPE,
-       CONF_SENSOR_DATAPOINT,
        CONF_NUMBER,
        CONF_VALUE,
        ENTITY_CATEGORY_DIAGNOSTIC,
@@ -24,6 +23,7 @@ CONF_IGNORE_MCU_UPDATE_ON_DATAPOINTS = "ignore_mcu_update_on_datapoints"
 
 CONF_REPORT_AP_NAME = "report_ap_name"
 CONF_ON_DATAPOINT_UPDATE = "on_datapoint_update"
+CONF_DATAPOINT = "datapoint"
 CONF_DATAPOINT_TYPE = "datapoint_type"
 CONF_STATUS_PIN = "status_pin"
 CONF_DIAGNOSTICS = "diagnostics"
@@ -60,6 +60,48 @@ DPTYPE_UINT = "uyat_uint"
 DPTYPE_STRING = "uyat_string"
 DPTYPE_ENUM = "uyat_enum"
 DPTYPE_BITMAP = "uyat_bitmap"
+
+DP_TYPES_TRANSLATED = {
+    DPTYPE_RAW: UyatDatapointType.RAW,
+    DPTYPE_BOOL: UyatDatapointType.BOOLEAN,
+    DPTYPE_ENUM: UyatDatapointType.ENUM,
+    DPTYPE_UINT: UyatDatapointType.INTEGER,
+    DPTYPE_STRING: UyatDatapointType.STRING,
+    DPTYPE_BITMAP: UyatDatapointType.BITMAP,
+}
+
+async def translate_dp_types(dp_types: list):
+    cpp_types_enum = []
+    for dp_type in dp_types:
+        if not dp_type == DPTYPE_DETECT:
+            cpp_types_enum.append(DP_TYPES_TRANSLATED[dp_type])
+
+    return cg.ArrayInitializer(*cpp_types_enum)
+
+async def matching_datapoint_from_config(dp_config, allowed_types: list):
+    allow_autodetect = DPTYPE_DETECT in allowed_types
+    if isinstance(dp_config, dict):
+        dp_type = dp_config.get(CONF_DATAPOINT_TYPE)
+        if dp_type == DPTYPE_DETECT and allow_autodetect:
+            return cg.StructInitializer(
+                MatchingDatapoint,
+                ("number", dp_config[CONF_NUMBER]),
+                ("types", await translate_dp_types(allowed_types))
+            )
+        else:
+            return cg.StructInitializer(
+                MatchingDatapoint,
+                ("number", dp_config[CONF_NUMBER]),
+                ("types", await translate_dp_types([dp_type]))
+            )
+    else:
+        if allow_autodetect:
+            return cg.StructInitializer(
+                MatchingDatapoint,
+                ("number", dp_config),
+                ("types", await translate_dp_types(allowed_types))
+            )
+
 
 CPP_DATAPOINT_TYPES = {
     DPTYPE_ANY: uyat_ns.struct("UyatDatapoint"),
@@ -153,7 +195,7 @@ CONFIG_SCHEMA = (
                     cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(
                         DATAPOINT_TRIGGERS[DPTYPE_ANY]
                     ),
-                    cv.Required(CONF_SENSOR_DATAPOINT): cv.uint8_t,
+                    cv.Required(CONF_DATAPOINT): cv.uint8_t,
                     cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_ANY): cv.one_of(
                         *DATAPOINT_TRIGGERS, lower=True
                     ),
@@ -183,7 +225,7 @@ async def to_code(config):
             cg.add(var.add_ignore_mcu_update_on_datapoints(dp))
     for conf in config.get(CONF_ON_DATAPOINT_UPDATE, []):
         trigger = cg.new_Pvariable(
-            conf[CONF_TRIGGER_ID], var, conf[CONF_SENSOR_DATAPOINT]
+            conf[CONF_TRIGGER_ID], var, conf[CONF_DATAPOINT]
         )
         await automation.build_automation(
             trigger, [(CPP_DATAPOINT_TYPES[conf[CONF_DATAPOINT_TYPE]], "x")], conf

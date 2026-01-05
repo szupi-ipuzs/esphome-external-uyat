@@ -43,7 +43,7 @@ struct DpText
    {
       this->handler_ = &handler;
       this->handler_->register_datapoint_listener(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpText::TAG, "%s processing as text_sensor", datapoint.to_string());
+         ESP_LOGV(DpText::TAG, "%s processing as text_sensor", datapoint.to_string().c_str());
 
          if (!matching_dp_.matches(datapoint.get_type()))
          {
@@ -93,7 +93,11 @@ struct DpText
 
    void set_value(const std::string& value)
    {
-      assert(this->handler_ != nullptr);
+      if (this->handler_ == nullptr)
+      {
+         ESP_LOGE(DpText::TAG, "DatapointHandler not initialized for %s", this->config_to_string().c_str());
+         return;
+      }
 
       if (value.empty())
       {
@@ -187,25 +191,8 @@ struct DpText
       this->handler_->set_datapoint_value(to_set_dp.value());
    }
 
-   static DpText create_for_any(const OnValueCallback& callback, const uint8_t dp_id, const TextDataEncoding data_encoding)
-   {
-      return DpText(callback, MatchingDatapoint{dp_id, {UyatDatapointType::RAW, UyatDatapointType::STRING}}, data_encoding);
-   }
-
-   static DpText create_for_raw(const OnValueCallback& callback, const uint8_t dp_id, const TextDataEncoding data_encoding)
-   {
-      return DpText(callback, MatchingDatapoint{dp_id, {UyatDatapointType::RAW}}, data_encoding);
-   }
-
-   static DpText create_for_string(const OnValueCallback& callback, const uint8_t dp_id, const TextDataEncoding data_encoding)
-   {
-      return DpText(callback, MatchingDatapoint{dp_id, {UyatDatapointType::STRING}}, data_encoding);
-   }
-
    DpText(DpText&&) = default;
    DpText& operator=(DpText&&) = default;
-
-private:
 
    DpText(const OnValueCallback& callback, MatchingDatapoint&& matching_dp, const TextDataEncoding data_encoding):
    callback_(callback),
@@ -213,6 +200,8 @@ private:
    data_encoding_(data_encoding),
    handler_(nullptr)
    {}
+
+private:
 
    std::string decode_(const std::string& input) const
    {

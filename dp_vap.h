@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-#include <assert.h>
 
 #include "uyat_datapoint_types.h"
 
@@ -27,7 +26,7 @@ struct DpVAP
    {
       handler_ = &handler;
       handler.register_datapoint_listener(this->matching_dp_, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpVAP::TAG, "%s processing as VAP", datapoint.to_string());
+         ESP_LOGV(DpVAP::TAG, "%s processing as VAP", datapoint.to_string().c_str());
 
          if (!matching_dp_.matches(datapoint.get_type()))
          {
@@ -65,20 +64,15 @@ struct DpVAP
       return this->matching_dp_.to_string();
    }
 
-   static DpVAP create_for_raw(const OnValueCallback& callback, const uint8_t dp_id)
-   {
-      return DpVAP(callback, MatchingDatapoint{.number = dp_id, .types = {UyatDatapointType::RAW}});
-   }
-
    DpVAP(DpVAP&&) = default;
    DpVAP& operator=(DpVAP&&) = default;
-
-private:
 
    DpVAP(const OnValueCallback& callback, MatchingDatapoint&& matching_dp):
    callback_(callback),
    matching_dp_(std::move(matching_dp))
    {}
+
+private:
 
    std::optional<VAPValue> decode_(const std::vector<uint8_t>& raw_data) const
    {

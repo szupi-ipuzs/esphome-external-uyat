@@ -26,7 +26,11 @@ class UyatSensorVAP : public sensor::Sensor, public Component {
 
   void setup() override;
   void dump_config() override;
-  void configure_raw_dp(const uint8_t dp_id, const UyatVAPValueType value_type);
+  void configure(MatchingDatapoint vap_dp, const UyatVAPValueType value_type){
+    this->value_type_ = value_type;
+    this->dp_vap_.emplace([this](const DpVAP::VAPValue& value){this->on_value(value);},
+                             std::move(vap_dp));
+  }
 
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 

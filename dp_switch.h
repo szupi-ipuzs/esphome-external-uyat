@@ -125,13 +125,13 @@ struct DpSwitch
    DpSwitch(DpSwitch&&) = default;
    DpSwitch& operator=(DpSwitch&&) = default;
 
-private:
-
    DpSwitch(const OnValueCallback& callback, MatchingDatapoint&& matching_dp, const bool inverted):
    callback_(callback),
    matching_dp_(std::move(matching_dp)),
    inverted_(inverted)
    {}
+
+private:
 
    bool invert_if_needed(const bool logical) const
    {

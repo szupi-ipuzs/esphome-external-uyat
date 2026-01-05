@@ -61,7 +61,7 @@ DPTYPE_STRING = "uyat_string"
 DPTYPE_ENUM = "uyat_enum"
 DPTYPE_BITMAP = "uyat_bitmap"
 
-DATAPOINT_TYPES = {
+CPP_DATAPOINT_TYPES = {
     DPTYPE_ANY: uyat_ns.struct("UyatDatapoint"),
     DPTYPE_RAW: cg.std_vector.template(cg.uint8),
     DPTYPE_BOOL: cg.bool_,
@@ -74,31 +74,31 @@ DATAPOINT_TYPES = {
 DATAPOINT_TRIGGERS = {
     DPTYPE_ANY: uyat_ns.class_(
         "UyatDatapointUpdateTrigger",
-        automation.Trigger.template(DATAPOINT_TYPES[DPTYPE_ANY]),
+        automation.Trigger.template(CPP_DATAPOINT_TYPES[DPTYPE_ANY]),
     ),
     DPTYPE_RAW: uyat_ns.class_(
         "UyatRawDatapointUpdateTrigger",
-        automation.Trigger.template(DATAPOINT_TYPES[DPTYPE_RAW]),
+        automation.Trigger.template(CPP_DATAPOINT_TYPES[DPTYPE_RAW]),
     ),
     DPTYPE_BOOL: uyat_ns.class_(
         "UyatBoolDatapointUpdateTrigger",
-        automation.Trigger.template(DATAPOINT_TYPES[DPTYPE_BOOL]),
+        automation.Trigger.template(CPP_DATAPOINT_TYPES[DPTYPE_BOOL]),
     ),
     DPTYPE_UINT: uyat_ns.class_(
         "UyatUIntDatapointUpdateTrigger",
-        automation.Trigger.template(DATAPOINT_TYPES[DPTYPE_UINT]),
+        automation.Trigger.template(CPP_DATAPOINT_TYPES[DPTYPE_UINT]),
     ),
     DPTYPE_STRING: uyat_ns.class_(
         "UyatStringDatapointUpdateTrigger",
-        automation.Trigger.template(DATAPOINT_TYPES[DPTYPE_STRING]),
+        automation.Trigger.template(CPP_DATAPOINT_TYPES[DPTYPE_STRING]),
     ),
     DPTYPE_ENUM: uyat_ns.class_(
         "UyatEnumDatapointUpdateTrigger",
-        automation.Trigger.template(DATAPOINT_TYPES[DPTYPE_ENUM]),
+        automation.Trigger.template(CPP_DATAPOINT_TYPES[DPTYPE_ENUM]),
     ),
     DPTYPE_BITMAP: uyat_ns.class_(
         "UyatBitmapDatapointUpdateTrigger",
-        automation.Trigger.template(DATAPOINT_TYPES[DPTYPE_BITMAP]),
+        automation.Trigger.template(CPP_DATAPOINT_TYPES[DPTYPE_BITMAP]),
     ),
 }
 
@@ -186,7 +186,7 @@ async def to_code(config):
             conf[CONF_TRIGGER_ID], var, conf[CONF_SENSOR_DATAPOINT]
         )
         await automation.build_automation(
-            trigger, [(DATAPOINT_TYPES[conf[CONF_DATAPOINT_TYPE]], "x")], conf
+            trigger, [(CPP_DATAPOINT_TYPES[conf[CONF_DATAPOINT_TYPE]], "x")], conf
         )
     if diagnostics_config := config.get(CONF_DIAGNOSTICS):
         cg.add_define("UYAT_DIAGNOSTICS_ENABLED")

@@ -125,77 +125,54 @@ struct DpNumber
 
    std::string config_to_string() const
    {
-      return str_sprintf("%s, offset=%d, multiplier=%.2f", this->matching_dp_.to_string().c_str(), this->offset_, this->multiplier_);
+      return str_sprintf("%s, offset=%.2f, multiplier=%.2f", this->matching_dp_.to_string().c_str(), this->offset_, this->multiplier_);
    }
 
-   static DpNumber create_for_any(const OnValueCallback& callback, const uint8_t dp_id, const int32_t offset = 0, const uint16_t scale = 0)
+   static DpNumber create_for_any(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
    {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN, UyatDatapointType::INTEGER, UyatDatapointType::ENUM, UyatDatapointType::BITMAP}}, offset, scale);
+      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN, UyatDatapointType::INTEGER, UyatDatapointType::ENUM, UyatDatapointType::BITMAP}}, offset, multiplier);
    }
 
-   static DpNumber create_for_bool(const OnValueCallback& callback, const uint8_t dp_id, const int32_t offset = 0, const uint16_t scale = 0)
+   static DpNumber create_for_bool(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
    {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN}}, offset, scale);
+      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BOOLEAN}}, offset, multiplier);
    }
 
-   static DpNumber create_for_uint(const OnValueCallback& callback, const uint8_t dp_id, const int32_t offset = 0, const uint16_t scale = 0)
+   static DpNumber create_for_uint(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
    {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::INTEGER}}, offset, scale);
+      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::INTEGER}}, offset, multiplier);
    }
 
-   static DpNumber create_for_enum(const OnValueCallback& callback, const uint8_t dp_id, const int32_t offset = 0, const uint16_t scale = 0)
+   static DpNumber create_for_enum(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
    {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::ENUM}}, offset, scale);
+      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::ENUM}}, offset, multiplier);
    }
 
-   static DpNumber create_for_bitmap(const OnValueCallback& callback, const uint8_t dp_id, const int32_t offset = 0, const uint16_t scale = 0)
+   static DpNumber create_for_bitmap(const OnValueCallback& callback, const uint8_t dp_id, const float offset = 0.0f, const float multiplier = 1.0f)
    {
-      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BITMAP}}, offset, scale);
+      return DpNumber(callback, MatchingDatapoint{dp_id, {UyatDatapointType::BITMAP}}, offset, multiplier);
    }
 
    DpNumber(DpNumber&&) = default;
    DpNumber& operator=(DpNumber&&) = default;
 
-private:
-
-   static constexpr float scale2multiplier(const uint16_t scale)
-   {
-      switch (scale)
-      {
-         case 0:
-            return 1.0f;
-         case 1:
-            return 0.1f;
-         case 2:
-            return 0.01f;
-         case 3:
-            return 0.001f;
-         case 4:
-            return 0.0001f;
-         case 5:
-            return 0.00001f;
-         case 6:
-            return 0.000001f;
-         default:
-            return 1.0f;
-      }
-   }
-
-   DpNumber(const OnValueCallback& callback, MatchingDatapoint&& matching_dp, const int32_t offset, const uint16_t scale):
+   DpNumber(const OnValueCallback& callback, MatchingDatapoint&& matching_dp, const float offset, const float multiplier):
    callback_(callback),
    matching_dp_(std::move(matching_dp)),
    offset_(offset),
-   multiplier_(scale2multiplier(scale))
+   multiplier_(multiplier)
    {}
+
+private:
 
    float calculate_logical_value(const uint32_t value) const
    {
-      return (float(value) + float(this->offset_)) * this->multiplier_;
+      return (float(value) + this->offset_) * this->multiplier_;
    }
 
    OnValueCallback callback_;
    MatchingDatapoint matching_dp_;
-   const int32_t offset_;
+   const float offset_;
    const float multiplier_;
 
    DatapointHandler* handler_{nullptr};

@@ -8,24 +8,24 @@ namespace uyat {
 
 static const char *const TAG = "uyat.number";
 
-void UyatNumber::configure_any_dp(const uint8_t dp_id, const uint8_t scale)
+void UyatNumber::configure_any_dp(const uint8_t dp_id, const float offset, const float multiplier)
 {
-  this->dp_number_.emplace(std::move(DpNumber::create_for_any([this](const float value){on_value(value);}, dp_id, 0, scale)));
+  this->dp_number_.emplace(std::move(DpNumber::create_for_any([this](const float value){on_value(value);}, dp_id, offset, multiplier)));
 }
 
-void UyatNumber::configure_bool_dp(const uint8_t dp_id, const uint8_t scale)
+void UyatNumber::configure_bool_dp(const uint8_t dp_id, const float offset, const float multiplier)
 {
-  this->dp_number_.emplace(std::move(DpNumber::create_for_bool([this](const float value){on_value(value);}, dp_id, 0, scale)));
+  this->dp_number_.emplace(std::move(DpNumber::create_for_bool([this](const float value){on_value(value);}, dp_id, offset, multiplier)));
 }
 
-void UyatNumber::configure_uint_dp(const uint8_t dp_id, const uint8_t scale)
+void UyatNumber::configure_uint_dp(const uint8_t dp_id, const float offset, const float multiplier)
 {
-  this->dp_number_.emplace(std::move(DpNumber::create_for_uint([this](const float value){on_value(value);}, dp_id, 0, scale)));
+  this->dp_number_.emplace(std::move(DpNumber::create_for_uint([this](const float value){on_value(value);}, dp_id, offset, multiplier)));
 }
 
-void UyatNumber::configure_enum_dp(const uint8_t dp_id, const uint8_t scale)
+void UyatNumber::configure_enum_dp(const uint8_t dp_id, const float offset, const float multiplier)
 {
-  this->dp_number_.emplace(std::move(DpNumber::create_for_enum([this](const float value){on_value(value);}, dp_id, 0, scale)));
+  this->dp_number_.emplace(std::move(DpNumber::create_for_enum([this](const float value){on_value(value);}, dp_id, offset, multiplier)));
 }
 
 void UyatNumber::setup() {

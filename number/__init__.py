@@ -8,6 +8,7 @@ from esphome.const import (
     CONF_NUMBER_DATAPOINT,
     CONF_STEP,
     CONF_NUMBER,
+    CONF_OFFSET
 )
 
 from .. import CONF_UYAT_ID, CONF_DATAPOINT_TYPE, Uyat, uyat_ns, DPTYPE_BOOL, DPTYPE_UINT, DPTYPE_ENUM, DPTYPE_DETECT
@@ -16,6 +17,7 @@ DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@szupi_ipuzs"]
 
 CONF_SCALE = "scale"
+CONF_MULTIPLIER = "multiplier"
 
 UyatNumber = uyat_ns.class_("UyatNumber", number.Number, cg.Component)
 
@@ -60,7 +62,9 @@ CONFIG_SCHEMA = cv.All(
             cv.Required(CONF_MAX_VALUE): cv.float_,
             cv.Required(CONF_MIN_VALUE): cv.float_,
             cv.Required(CONF_STEP): cv.positive_float,
-            cv.Optional(CONF_SCALE, default=0): cv.uint8_t
+            cv.Exclusive(CONF_SCALE, "scaling"): cv.int_range(max=7),
+            cv.Exclusive(CONF_MULTIPLIER, "scaling"): cv.positive_float,
+            cv.Optional(CONF_OFFSET, default=0.0): cv.float_,
         }
     )
     .extend(cv.COMPONENT_SCHEMA),
@@ -82,15 +86,21 @@ async def to_code(config):
     parent = await cg.get_variable(config[CONF_UYAT_ID])
     cg.add(var.set_uyat_parent(parent))
 
+    multiplier = 1.0
+    if CONF_MULTIPLIER in config:
+        multiplier = config[CONF_MULTIPLIER]
+    elif CONF_SCALE in config:
+        multiplier = 10 ** config[CONF_SCALE]
+
     dp_config = config[CONF_NUMBER_DATAPOINT]
     if not isinstance(dp_config, dict):
-        cg.add(var.configure_any_dp(dp_config, config[CONF_SCALE]))
+        cg.add(var.configure_any_dp(dp_config, config[CONF_OFFSET], multiplier))
     else:
         if dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_BOOL:
-            cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER], config[CONF_SCALE]))
+            cg.add(var.configure_bool_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))
         elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_UINT:
-            cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER], config[CONF_SCALE]))
+            cg.add(var.configure_uint_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))
         elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_ENUM:
-            cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER], config[CONF_SCALE]))
+            cg.add(var.configure_enum_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))
         elif dp_config[CONF_DATAPOINT_TYPE]==DPTYPE_DETECT:
-            cg.add(var.configure_any_dp(dp_config[CONF_NUMBER], config[CONF_SCALE]))
+            cg.add(var.configure_any_dp(dp_config[CONF_NUMBER], config[CONF_OFFSET], multiplier))

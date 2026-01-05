@@ -1,35 +1,76 @@
-#include "uyat_climate.h"
 #include "esphome/core/log.h"
+#include "esphome/core/entity_base.h"
+
+#include "uyat_climate.h"
 
 namespace esphome {
 namespace uyat {
 
 static const char *const TAG = "uyat.climate";
 
-void UyatClimate::setup() {
-  if (this->switch_id_.has_value()) {
-    this->parent_->register_datapoint_listener(*this->switch_id_, [this](const UyatDatapoint &datapoint) {
-      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
-      if (!dp_value)
-      {
-        ESP_LOGW(TAG, "Unexpected datapoint type!");
-        return;
-      }
+void UyatClimate::on_switch_value(const bool value)
+{
+  ESP_LOGV(TAG, "Switch of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
+  this->mode = climate::CLIMATE_MODE_OFF;
 
-      ESP_LOGV(TAG, "MCU reported switch is: %s", ONOFF(dp_value->value));
-      this->mode = climate::CLIMATE_MODE_OFF;
-      if (dp_value->value) {
-        if (this->supports_heat_ && this->supports_cool_) {
-          this->mode = climate::CLIMATE_MODE_HEAT_COOL;
-        } else if (this->supports_heat_) {
-          this->mode = climate::CLIMATE_MODE_HEAT;
-        } else if (this->supports_cool_) {
-          this->mode = climate::CLIMATE_MODE_COOL;
-        }
-      }
-      this->compute_state_();
-      this->publish_state();
-    });
+  if (this->supports_heat_ && this->supports_cool_) {
+    this->mode = climate::CLIMATE_MODE_HEAT_COOL;
+  } else if (this->supports_heat_) {
+    this->mode = climate::CLIMATE_MODE_HEAT;
+  } else if (this->supports_cool_) {
+    this->mode = climate::CLIMATE_MODE_COOL;
+  }
+
+  this->compute_state_();
+  this->publish_state();
+}
+
+void UyatClimate::on_sleep_value(const bool value)
+{
+  this->sleep_ = value;
+  ESP_LOGV(TAG, "Sleep of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
+  this->compute_preset_();
+  this->compute_target_temperature_();
+  this->publish_state();
+}
+
+void UyatClimate::on_eco_value(const bool value)
+{
+  ESP_LOGV(TAG, "Eco of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
+  this->eco_ = value;
+  this->compute_preset_();
+  this->compute_target_temperature_();
+  this->publish_state();
+}
+
+void UyatClimate::on_target_temperature_value(const float value)
+{
+  this->manual_temperature_ = value;
+  if (this->reports_fahrenheit_) {
+    this->manual_temperature_ = (this->manual_temperature_ - 32) * 5 / 9;
+  }
+
+  ESP_LOGV(TAG, "Manual Target Temperature of %s is now %.1f", this->get_object_id().c_str(), this->manual_temperature_);
+  this->compute_target_temperature_();
+  this->compute_state_();
+  this->publish_state();
+}
+
+void UyatClimate::on_current_temperature_value(const float value)
+{
+  this->current_temperature = value;
+  if (this->reports_fahrenheit_) {
+    this->current_temperature = (this->current_temperature - 32) * 5 / 9;
+  }
+
+  ESP_LOGV(TAG, "Current Temperature of %s is now %.1f", this->get_object_id().c_str(), this->current_temperature);
+  this->compute_state_();
+  this->publish_state();
+}
+
+void UyatClimate::setup() {
+  if (this->dp_switch_.has_value()) {
+    this->dp_switch_->init(*(this->parent_));
   }
   if (this->heating_state_pin_ != nullptr) {
     this->heating_state_pin_->setup();
@@ -54,84 +95,17 @@ void UyatClimate::setup() {
       this->publish_state();
     });
   }
-  if (this->target_temperature_id_.has_value()) {
-    this->parent_->register_datapoint_listener(*this->target_temperature_id_, [this](const UyatDatapoint &datapoint) {
-      auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
-      if (!dp_value)
-      {
-        ESP_LOGW(TAG, "Unexpected datapoint type!");
-        return;
-      }
-
-      this->manual_temperature_ = dp_value->value * this->target_temperature_multiplier_;
-      if (this->reports_fahrenheit_) {
-        this->manual_temperature_ = (this->manual_temperature_ - 32) * 5 / 9;
-      }
-
-      ESP_LOGV(TAG, "MCU reported manual target temperature is: %.1f", this->manual_temperature_);
-      this->compute_target_temperature_();
-      this->compute_state_();
-      this->publish_state();
-    });
+  if (this->dp_target_temperature_.has_value()) {
+    this->dp_target_temperature_->init(*(this->parent_));
   }
-  if (this->current_temperature_id_.has_value()) {
-    this->parent_->register_datapoint_listener(*this->current_temperature_id_, [this](const UyatDatapoint &datapoint) {
-      auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
-      if (!dp_value)
-      {
-        ESP_LOGW(TAG, "Unexpected datapoint type!");
-        return;
-      }
-
-      this->current_temperature = dp_value->value * this->current_temperature_multiplier_;
-      if (this->reports_fahrenheit_) {
-        this->current_temperature = (this->current_temperature - 32) * 5 / 9;
-      }
-
-      ESP_LOGV(TAG, "MCU reported current temperature is: %.1f", this->current_temperature);
-      this->compute_state_();
-      this->publish_state();
-    });
+  if (this->dp_current_temperature_.has_value()) {
+    this->dp_current_temperature_->init(*(this->parent_));
   }
-  if (this->eco_id_.has_value()) {
-    this->parent_->register_datapoint_listener(*this->eco_id_, [this](const UyatDatapoint &datapoint) {
-      // Whether data type is BOOL or ENUM, it will still be a 1 or a 0, so the functions below are valid in both cases
-      if (auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value))
-      {
-        this->eco_ = dp_value->value;
-      }
-      else
-      if (auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value))
-      {
-        this->eco_ = dp_value->value;
-      }
-      else
-      {
-        ESP_LOGW(TAG, "Unexpected datapoint %d type (expected BOOL or ENUM, got %s)!", datapoint.number, datapoint.get_type_name());
-        return;
-      }
-
-      ESP_LOGV(TAG, "MCU reported eco is: %s", ONOFF(this->eco_));
-      this->compute_preset_();
-      this->compute_target_temperature_();
-      this->publish_state();
-    });
+  if (this->dp_eco_.has_value()) {
+    this->dp_eco_->init(*(this->parent_));
   }
-  if (this->sleep_id_.has_value()) {
-    this->parent_->register_datapoint_listener(*this->sleep_id_, [this](const UyatDatapoint &datapoint) {
-      auto * dp_value = std::get_if<BoolDatapointValue>(&datapoint.value);
-      if (!dp_value)
-      {
-        ESP_LOGW(TAG, "Unexpected datapoint type!");
-        return;
-      }
-
-      this->sleep_ = dp_value->value;
-      ESP_LOGV(TAG, "MCU reported sleep is: %s", ONOFF(this->sleep_));
-      this->compute_preset_();
-      this->compute_target_temperature_();
-      this->publish_state();
-    });
+  if (this->dp_sleep_.has_value()) {
+    this->dp_sleep_->init(*(this->parent_));
   }
   if (this->swing_vertical_id_.has_value()) {
     this->parent_->register_datapoint_listener(*this->swing_vertical_id_, [this](const UyatDatapoint &datapoint) {
@@ -208,10 +182,11 @@ void UyatClimate::loop() {
 }
 
 void UyatClimate::control(const climate::ClimateCall &call) {
-  if (call.get_mode().has_value()) {
-    const bool switch_state = *call.get_mode() != climate::CLIMATE_MODE_OFF;
+  auto mode = call.get_mode();
+  if (mode.has_value()) {
+    const bool switch_state = *mode != climate::CLIMATE_MODE_OFF;
     ESP_LOGV(TAG, "Setting switch: %s", ONOFF(switch_state));
-    this->parent_->set_boolean_datapoint_value(this->switch_id_->number, switch_state);
+    this->dp_switch_->set_value(switch_state);
     const climate::ClimateMode new_mode = *call.get_mode();
 
     if (this->active_state_id_.has_value()) {
@@ -238,25 +213,20 @@ void UyatClimate::control(const climate::ClimateCall &call) {
       target_temperature = (target_temperature * 9 / 5) + 32;
 
     ESP_LOGV(TAG, "Setting target temperature: %.1f", target_temperature);
-    this->parent_->set_integer_datapoint_value(this->target_temperature_id_->number,
-                                               (int) (target_temperature / this->target_temperature_multiplier_));
+    this->dp_target_temperature_->set_value(target_temperature);
   }
 
   if (call.get_preset().has_value()) {
     const climate::ClimatePreset preset = *call.get_preset();
-    if (this->eco_id_.has_value()) {
-      const bool eco = preset == climate::CLIMATE_PRESET_ECO;
-      ESP_LOGV(TAG, "Setting eco: %s", ONOFF(eco));
-      if (this->eco_id_->type == UyatDatapointType::ENUM) {
-        this->parent_->set_enum_datapoint_value(this->eco_id_->number, eco);
-      } else {
-        this->parent_->set_boolean_datapoint_value(this->eco_id_->number, eco);
-      }
+    if (this->dp_eco_.has_value()) {
+      const bool eco_value = preset == climate::CLIMATE_PRESET_ECO;
+      ESP_LOGV(TAG, "Setting eco: %s", ONOFF(eco_value));
+      this->dp_eco_->set_value(eco_value);
     }
-    if (this->sleep_id_.has_value()) {
+    if (this->dp_sleep_.has_value()) {
       const bool sleep = preset == climate::CLIMATE_PRESET_SLEEP;
       ESP_LOGV(TAG, "Setting sleep: %s", ONOFF(sleep));
-      this->parent_->set_boolean_datapoint_value(this->sleep_id_->number, sleep);
+      this->dp_sleep_->set_value(sleep);
     }
   }
 }
@@ -359,7 +329,7 @@ void UyatClimate::control_fan_mode_(const climate::ClimateCall &call) {
 climate::ClimateTraits UyatClimate::traits() {
   auto traits = climate::ClimateTraits();
   traits.add_feature_flags(climate::CLIMATE_SUPPORTS_ACTION);
-  if (this->current_temperature_id_.has_value()) {
+  if (this->dp_current_temperature_.has_value()) {
     traits.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
   }
 
@@ -371,13 +341,13 @@ climate::ClimateTraits UyatClimate::traits() {
     traits.add_supported_mode(climate::CLIMATE_MODE_DRY);
   if (this->active_state_fanonly_value_.has_value())
     traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
-  if (this->eco_id_.has_value()) {
+  if (this->dp_eco_.has_value()) {
     traits.add_supported_preset(climate::CLIMATE_PRESET_ECO);
   }
-  if (this->sleep_id_.has_value()) {
+  if (this->dp_sleep_.has_value()) {
     traits.add_supported_preset(climate::CLIMATE_PRESET_SLEEP);
   }
-  if (this->sleep_id_.has_value() || this->eco_id_.has_value()) {
+  if (this->dp_sleep_.has_value() || this->dp_eco_.has_value()) {
     traits.add_supported_preset(climate::CLIMATE_PRESET_NONE);
   }
   if (this->swing_vertical_id_.has_value() && this->swing_horizontal_id_.has_value()) {
@@ -406,25 +376,25 @@ climate::ClimateTraits UyatClimate::traits() {
 
 void UyatClimate::dump_config() {
   LOG_CLIMATE("", "Uyat Climate", this);
-  if (this->switch_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "  Switch is %s", this->switch_id_->to_string().c_str());
+  if (this->dp_switch_.has_value()) {
+    ESP_LOGCONFIG(TAG, "  Switch is %s", this->dp_switch_->config_to_string().c_str());
   }
   if (this->active_state_id_.has_value()) {
     ESP_LOGCONFIG(TAG, "  Active state is %s", this->active_state_id_->to_string().c_str());
   }
-  if (this->target_temperature_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "  Target Temperature is %s", this->target_temperature_id_->to_string().c_str());
+  if (this->dp_target_temperature_.has_value()) {
+    ESP_LOGCONFIG(TAG, "  Target Temperature is %s", this->dp_target_temperature_->config_to_string().c_str());
   }
-  if (this->current_temperature_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "  Current Temperature is %s", this->current_temperature_id_->to_string().c_str());
+  if (this->dp_current_temperature_.has_value()) {
+    ESP_LOGCONFIG(TAG, "  Current Temperature is %s", this->dp_current_temperature_->config_to_string().c_str());
   }
   LOG_PIN("  Heating State Pin: ", this->heating_state_pin_);
   LOG_PIN("  Cooling State Pin: ", this->cooling_state_pin_);
-  if (this->eco_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "  Eco is %s", this->eco_id_->to_string().c_str());
+  if (this->dp_eco_.has_value()) {
+    ESP_LOGCONFIG(TAG, "  Eco is %s", this->dp_eco_->config_to_string().c_str());
   }
-  if (this->sleep_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "  Sleep is %s", this->sleep_id_->to_string().c_str());
+  if (this->dp_sleep_.has_value()) {
+    ESP_LOGCONFIG(TAG, "  Sleep is %s", this->dp_sleep_->config_to_string().c_str());
   }
   if (this->swing_vertical_id_.has_value()) {
     ESP_LOGCONFIG(TAG, "  Swing Vertical is %s", this->swing_vertical_id_->to_string().c_str());
@@ -562,6 +532,13 @@ void UyatClimate::switch_to_action_(climate::ClimateAction action) {
   // For now this just sets the current action but could include triggers later
   this->action = action;
 }
+
+std::string UyatClimate::get_object_id() const
+{
+  char object_id_buf[OBJECT_ID_MAX_LEN];
+  return this->get_object_id_to(object_id_buf).str();
+}
+
 
 }  // namespace uyat
 }  // namespace esphome

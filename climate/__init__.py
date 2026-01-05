@@ -313,7 +313,7 @@ async def to_code(config):
     if current_temperature_config := config.get(CONF_CURRENT_TEMPERATURE):
         multiplier = current_temperature_config.get(CONF_MULTIPLIER, 1.0)
         offset = current_temperature_config.get(CONF_OFFSET, 0.0)
-        current_temperature_datapoint = target_temperature_config.get(CONF_DATAPOINT)
+        current_temperature_datapoint = current_temperature_config.get(CONF_DATAPOINT)
         cg.add(
             var.set_current_temperature_id(await matching_datapoint_from_config(current_temperature_datapoint, TEMPERATURE_DP_TYPES),
                                           offset,

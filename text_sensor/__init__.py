@@ -120,7 +120,7 @@ async def to_code(config):
     if config[CONF_TYPE] == CONF_TYPE_TEXT:
         cg.add(var.configure(await matching_datapoint_from_config(config[CONF_DATAPOINT], TEXT_SENSOR_DP_TYPES), config[CONF_ENCODING]))
     if config[CONF_TYPE] == CONF_TYPE_MAPPED:
-        cg.add(var.configure(await matching_datapoint_from_config(config[CONF_DATAPOINT], TEXT_SENSOR_DP_TYPES)))
+        cg.add(var.configure(await matching_datapoint_from_config(config[CONF_DATAPOINT], MAPPED_TEXT_SENSOR_DP_TYPES)))
         options_map = config[CONF_OPTIONS]
         for option, mapping in options_map.items():
             cg.add(var.add_mapping(option, mapping))

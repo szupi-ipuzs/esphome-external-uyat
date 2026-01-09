@@ -68,6 +68,11 @@ struct DpBinarySensor
             this->value_ = apply_filters_(dp_value->value);
             callback_(value_.value());
          }
+         else
+         {
+            ESP_LOGW(DpBinarySensor::TAG, "Unhandled datapoint type %s!", datapoint.get_type_name());
+            return;
+         }
       });
    }
 

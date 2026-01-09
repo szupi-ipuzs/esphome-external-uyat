@@ -73,6 +73,11 @@ struct DpText
             this->received_value_ = this->decode_(dp_value->value);
             callback_(this->received_value_);
          }
+         else
+         {
+            ESP_LOGW(DpText::TAG, "Unhandled datapoint type %s!", datapoint.get_type_name());
+            return;
+         }
       });
    }
 

@@ -58,6 +58,11 @@ struct DpSwitch
             received_value_ = invert_if_needed(dp_value->value != 0);
             callback_(received_value_.value());
          }
+         else
+         {
+            ESP_LOGW(DpSwitch::TAG, "Unhandled datapoint type %s!", datapoint.get_type_name());
+            return;
+         }
       });
    }
 

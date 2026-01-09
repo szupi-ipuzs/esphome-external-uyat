@@ -68,6 +68,11 @@ struct DpNumber
             this->received_value_ = calculate_logical_value(dp_value->value);
             callback_(received_value_.value());
          }
+         else
+         {
+            ESP_LOGW(DpNumber::TAG, "Unhandled datapoint type %s!", datapoint.get_type_name());
+            return;
+         }
       });
    }
 

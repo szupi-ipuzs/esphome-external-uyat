@@ -12,8 +12,13 @@ void UyatLight::setup() {
   if (this->dp_white_temperature_.has_value()) {
     this->dp_white_temperature_->init(*(this->parent_));
   }
-  if (this->dp_dimmer_.has_value()) {
-    this->dp_dimmer_->init(*(this->parent_));
+  if (this->dimmer_.has_value()) {
+    this->dimmer_->dimmer.init(*(this->parent_));
+    if (this->dimmer_->min_value_number)
+    {
+      this->dimmer_->min_value_number->init(*(this->parent_));
+      this->dimmer_->min_value_number->set_value(this->dimmer_->dimmer.get_config().min_value);
+    }
   }
   if (this->dp_switch_.has_value()) {
     this->dp_switch_->init(*(this->parent_));
@@ -25,8 +30,12 @@ void UyatLight::setup() {
 
 void UyatLight::dump_config() {
   ESP_LOGCONFIG(TAG, "Uyat Dimmer:");
-  if (this->dp_dimmer_.has_value()) {
-    this->dp_dimmer_->dump_config();
+  if (this->dimmer_.has_value()) {
+    ESP_LOGCONFIG(TAG, "   Dimmer is: %s", this->dimmer_->dimmer.get_config().to_string().c_str());
+    if (this->dimmer_->min_value_number)
+    {
+        ESP_LOGCONFIG(TAG, "   Has min_value_datapoint: %s", this->dimmer_->min_value_number->get_config().matching_dp.to_string().c_str());
+    }
   }
   if (this->dp_switch_.has_value()) {
     ESP_LOGCONFIG(TAG, "   Switch is %s", this->dp_switch_->get_config().to_string().c_str());
@@ -34,11 +43,15 @@ void UyatLight::dump_config() {
   if (this->dp_color_.has_value()) {
     ESP_LOGCONFIG(TAG, "   Color is %s", this->dp_color_->get_config().to_string().c_str());
   }
+  // if (this->dp_white_temperature_)
+  // {
+
+  // }
 }
 
 light::LightTraits UyatLight::get_traits() {
   auto traits = light::LightTraits();
-  if (this->dp_white_temperature_.has_value() && this->dp_dimmer_.has_value()) {
+  if (this->dp_white_temperature_.has_value() && this->dimmer_.has_value()) {
     if (this->dp_color_.has_value()) {
       if (this->color_interlock_) {
         traits.set_supported_color_modes({light::ColorMode::RGB, light::ColorMode::COLOR_TEMPERATURE});
@@ -52,7 +65,7 @@ light::LightTraits UyatLight::get_traits() {
     traits.set_min_mireds(this->cold_white_temperature_);
     traits.set_max_mireds(this->warm_white_temperature_);
   } else if (this->dp_color_.has_value()) {
-    if (this->dp_dimmer_.has_value()) {
+    if (this->dimmer_.has_value()) {
       if (this->color_interlock_) {
         traits.set_supported_color_modes({light::ColorMode::RGB, light::ColorMode::WHITE});
       } else {
@@ -61,7 +74,7 @@ light::LightTraits UyatLight::get_traits() {
     } else {
       traits.set_supported_color_modes({light::ColorMode::RGB});
     }
-  } else if (this->dp_dimmer_.has_value()) {
+  } else if (this->dimmer_.has_value()) {
     traits.set_supported_color_modes({light::ColorMode::BRIGHTNESS});
   } else {
     traits.set_supported_color_modes({light::ColorMode::ON_OFF});
@@ -78,7 +91,7 @@ void UyatLight::write_state(light::LightState *state) {
   if (this->dp_color_.has_value()) {
     if (this->dp_white_temperature_.has_value()) {
       state->current_values_as_rgbct(&red, &green, &blue, &color_temperature, &brightness);
-    } else if (this->dp_dimmer_.has_value()) {
+    } else if (this->dimmer_.has_value()) {
       state->current_values_as_rgbw(&red, &green, &blue, &brightness);
     } else {
       state->current_values_as_rgb(&red, &green, &blue);
@@ -99,8 +112,8 @@ void UyatLight::write_state(light::LightState *state) {
       this->dp_white_temperature_->set_value(color_temperature);
     }
 
-    if (this->dp_dimmer_.has_value()) {
-      this->dp_dimmer_->set_value(brightness);
+    if (this->dimmer_.has_value()) {
+      this->dimmer_->dimmer.set_value(brightness);
     }
   }
 

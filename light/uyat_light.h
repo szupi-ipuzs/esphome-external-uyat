@@ -22,12 +22,24 @@ class UyatLight : public Component, public light::LightOutput {
  public:
   void setup() override;
   void dump_config() override;
-  void configure_dimmer(MatchingDatapoint dimmer_dp, const uint32_t min_value, const uint32_t max_value, std::optional<MatchingDatapoint> min_value_dp = std::nullopt) {
-    this->dp_dimmer_.emplace([this](const float brightness_percent){ this->on_dimmer_value(brightness_percent); },
-                          std::move(dimmer_dp),
-                          min_value, max_value,
-                          min_value_dp
-                        );
+  void configure_dimmer(MatchingDatapoint dimmer_dp, const uint32_t min_value, const uint32_t max_value, const bool inverted, std::optional<MatchingDatapoint> min_value_dp = std::nullopt) {
+    this->dimmer_.emplace(
+                          DpDimmer{
+                            [this](const float brightness_percent){ this->on_dimmer_value(brightness_percent); },
+                            std::move(dimmer_dp),
+                            min_value, max_value,
+                            inverted
+                          },
+                          std::nullopt
+                         );
+    if (min_value_dp)
+    {
+      this->dimmer_->min_value_number.emplace(
+        [](auto){}, // ignore (write only)
+        std::move(*min_value_dp),
+        0.0f, 1.0f
+      );
+    }
   }
 
   void configure_switch(MatchingDatapoint dimmer_dp, const bool inverted) {
@@ -49,8 +61,7 @@ class UyatLight : public Component, public light::LightOutput {
     this->dp_white_temperature_.emplace([this](const float brightness_percent){ this->on_white_temperature_value(brightness_percent); },
                           std::move(dimmer_dp),
                           min_value, max_value,
-                          std::nullopt
-// todo: use inverted
+                          inverted
                         );
     this->cold_white_temperature_ = cold_white_temperature;
     this->warm_white_temperature_ = warm_white_temperature;
@@ -66,8 +77,14 @@ class UyatLight : public Component, public light::LightOutput {
 
  protected:
 
+  struct DimmerConfig
+  {
+    DpDimmer dimmer;
+    std::optional<DpNumber> min_value_number;
+  };
+
   Uyat *parent_;
-  std::optional<DpDimmer> dp_dimmer_{};
+  std::optional<DimmerConfig> dimmer_{};
   std::optional<DpSwitch> dp_switch_{};
   std::optional<DpColor> dp_color_{};
   std::optional<DpDimmer> dp_white_temperature_{};

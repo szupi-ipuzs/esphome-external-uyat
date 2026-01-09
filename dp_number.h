@@ -29,7 +29,7 @@ struct DpNumber
    {
       handler_ = &handler;
       handler.register_datapoint_listener(this->config_.matching_dp, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpNumber::TAG, "%s processing as sensor", datapoint.to_string().c_str());
+         ESP_LOGV(DpNumber::TAG, "%s processing as number", datapoint.to_string().c_str());
 
          if (!this->config_.matching_dp.matches(datapoint.get_type()))
          {

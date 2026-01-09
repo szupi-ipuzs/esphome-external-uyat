@@ -93,6 +93,7 @@ DIMMER_CONFIG_SCHEMA = cv.Schema(
         ),
         cv.Optional(CONF_MIN_VALUE, default=0): cv.int_,
         cv.Optional(CONF_MAX_VALUE, default=255): cv.int_,
+        cv.Optional(CONF_INVERTED, default=False): cv.boolean,
         cv.Optional(CONF_MIN_VALUE_DATAPOINT): cv.Any(cv.uint8_t,
             cv.Schema(
             {
@@ -176,13 +177,15 @@ async def to_code(config):
             cg.add(var.configure_dimmer(
                                         await matching_datapoint_from_config(dimmer_config[CONF_DATAPOINT], DIMMER_DP_TYPES),
                                         dimmer_config[CONF_MIN_VALUE],
-                                        dimmer_config[CONF_MAX_VALUE]),
-                                        await matching_datapoint_from_config(dimmer_config[CONF_MIN_VALUE_DATAPOINT], MIN_VALUE_DP_TYPES))
+                                        dimmer_config[CONF_MAX_VALUE],
+                                        dimmer_config[CONF_INVERTED],
+                                        await matching_datapoint_from_config(dimmer_config[CONF_MIN_VALUE_DATAPOINT], MIN_VALUE_DP_TYPES)))
         else:
             cg.add(var.configure_dimmer(
                                         await matching_datapoint_from_config(dimmer_config[CONF_DATAPOINT], DIMMER_DP_TYPES),
                                         dimmer_config[CONF_MIN_VALUE],
-                                        dimmer_config[CONF_MAX_VALUE]))
+                                        dimmer_config[CONF_MAX_VALUE],
+                                        dimmer_config[CONF_INVERTED]))
     if CONF_SWITCH in config:
         switch_config = config[CONF_SWITCH]
         cg.add(var.configure_switch(await matching_datapoint_from_config(switch_config[CONF_DATAPOINT], SWITCH_DP_TYPES), switch_config[CONF_INVERTED]))

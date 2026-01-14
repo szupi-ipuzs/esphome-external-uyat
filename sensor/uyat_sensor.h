@@ -14,7 +14,6 @@ namespace esphome::uyat
 class UyatSensor : public sensor::Sensor, public Component {
  private:
   void on_value(const float);
-  std::string get_object_id() const;
 
  public:
   void setup() override;

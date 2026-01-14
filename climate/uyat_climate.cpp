@@ -71,6 +71,14 @@ void UyatClimate::on_current_temperature_value(const float value)
   this->publish_state();
 }
 
+void UyatClimate::on_active_state_value(const float value)
+{
+  ESP_LOGV(TAG, "MCU reported active state is: %.0f", value);
+  this->current_active_state_ = static_cast<uint32_t>(value);
+  this->compute_state_();
+  this->publish_state();
+}
+
 void UyatClimate::setup() {
   if (this->dp_switch_.has_value()) {
     this->dp_switch_->init(*(this->parent_));
@@ -83,20 +91,8 @@ void UyatClimate::setup() {
     this->cooling_state_pin_->setup();
     this->cooling_state_ = this->cooling_state_pin_->digital_read();
   }
-  if (this->active_state_id_.has_value()) {
-    this->parent_->register_datapoint_listener(*this->active_state_id_, [this](const UyatDatapoint &datapoint) {
-      auto * dp_value = std::get_if<EnumDatapointValue>(&datapoint.value);
-      if (!dp_value)
-      {
-        ESP_LOGW(TAG, "Unexpected datapoint type!");
-        return;
-      }
-
-      ESP_LOGV(TAG, "MCU reported active state is: %u", dp_value->value);
-      this->active_state_ = dp_value->value;
-      this->compute_state_();
-      this->publish_state();
-    });
+  if (this->dp_active_state_.has_value()) {
+    this->dp_active_state_->dp_number.init(*(this->parent_));
   }
   if (this->dp_target_temperature_.has_value()) {
     this->dp_target_temperature_->init(*(this->parent_));
@@ -191,15 +187,15 @@ void UyatClimate::control(const climate::ClimateCall &call) {
     this->dp_switch_->set_value(switch_state);
     const climate::ClimateMode new_mode = *call.get_mode();
 
-    if (this->active_state_id_.has_value()) {
+    if (this->dp_active_state_.has_value()) {
       if (new_mode == climate::CLIMATE_MODE_HEAT && this->supports_heat_) {
-        this->parent_->set_enum_datapoint_value(this->active_state_id_->number, *this->active_state_heating_value_);
+        this->dp_active_state_->dp_number.set_value(*this->dp_active_state_->mapping.heating_value);
       } else if (new_mode == climate::CLIMATE_MODE_COOL && this->supports_cool_) {
-        this->parent_->set_enum_datapoint_value(this->active_state_id_->number, *this->active_state_cooling_value_);
-      } else if (new_mode == climate::CLIMATE_MODE_DRY && this->active_state_drying_value_.has_value()) {
-        this->parent_->set_enum_datapoint_value(this->active_state_id_->number, *this->active_state_drying_value_);
-      } else if (new_mode == climate::CLIMATE_MODE_FAN_ONLY && this->active_state_fanonly_value_.has_value()) {
-        this->parent_->set_enum_datapoint_value(this->active_state_id_->number, *this->active_state_fanonly_value_);
+        this->dp_active_state_->dp_number.set_value(*this->dp_active_state_->mapping.cooling_value);
+      } else if (new_mode == climate::CLIMATE_MODE_DRY && this->dp_active_state_->mapping.drying_value.has_value()) {
+        this->dp_active_state_->dp_number.set_value(*this->dp_active_state_->mapping.drying_value);
+      } else if (new_mode == climate::CLIMATE_MODE_FAN_ONLY && this->dp_active_state_->mapping.fanonly_value.has_value()) {
+        this->dp_active_state_->dp_number.set_value(*this->dp_active_state_->mapping.fanonly_value);
       }
     } else {
       ESP_LOGW(TAG, "Active state (mode) datapoint not configured");
@@ -339,9 +335,9 @@ climate::ClimateTraits UyatClimate::traits() {
     traits.add_supported_mode(climate::CLIMATE_MODE_HEAT);
   if (supports_cool_)
     traits.add_supported_mode(climate::CLIMATE_MODE_COOL);
-  if (this->active_state_drying_value_.has_value())
+  if (this->dp_active_state_->mapping.drying_value.has_value())
     traits.add_supported_mode(climate::CLIMATE_MODE_DRY);
-  if (this->active_state_fanonly_value_.has_value())
+  if (this->dp_active_state_->mapping.fanonly_value.has_value())
     traits.add_supported_mode(climate::CLIMATE_MODE_FAN_ONLY);
   if (this->dp_eco_.has_value()) {
     traits.add_supported_preset(climate::CLIMATE_PRESET_ECO);
@@ -381,8 +377,8 @@ void UyatClimate::dump_config() {
   if (this->dp_switch_.has_value()) {
     ESP_LOGCONFIG(TAG, "  Switch is %s", this->dp_switch_->get_config().to_string().c_str());
   }
-  if (this->active_state_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "  Active state is %s", this->active_state_id_->to_string().c_str());
+  if (this->dp_active_state_.has_value()) {
+    ESP_LOGCONFIG(TAG, "  Active state is %s", this->dp_active_state_->dp_number.get_config().to_string().c_str());
   }
   if (this->dp_target_temperature_.has_value()) {
     ESP_LOGCONFIG(TAG, "  Target Temperature is %s", this->dp_target_temperature_->get_config().to_string().c_str());
@@ -478,38 +474,30 @@ void UyatClimate::compute_state_() {
       target_action = climate::CLIMATE_ACTION_COOLING;
       this->mode = climate::CLIMATE_MODE_COOL;
     }
-    if (this->active_state_id_.has_value()) {
+    if (this->dp_active_state_.has_value()) {
       // Both are available, use MCU datapoint as mode
-      if (this->supports_heat_ && this->active_state_heating_value_.has_value() &&
-          this->active_state_ == this->active_state_heating_value_) {
+      if (this->supports_heat_ && this->dp_active_state_->mapping.heating_value == this->current_active_state_) {
         this->mode = climate::CLIMATE_MODE_HEAT;
-      } else if (this->supports_cool_ && this->active_state_cooling_value_.has_value() &&
-                 this->active_state_ == this->active_state_cooling_value_) {
+      } else if (this->supports_cool_ && this->dp_active_state_->mapping.cooling_value == this->current_active_state_) {
         this->mode = climate::CLIMATE_MODE_COOL;
-      } else if (this->active_state_drying_value_.has_value() &&
-                 this->active_state_ == this->active_state_drying_value_) {
+      } else if (this->dp_active_state_->mapping.drying_value == this->current_active_state_) {
         this->mode = climate::CLIMATE_MODE_DRY;
-      } else if (this->active_state_fanonly_value_.has_value() &&
-                 this->active_state_ == this->active_state_fanonly_value_) {
+      } else if (this->dp_active_state_->mapping.fanonly_value == this->current_active_state_) {
         this->mode = climate::CLIMATE_MODE_FAN_ONLY;
       }
     }
-  } else if (this->active_state_id_.has_value()) {
+  } else if (this->dp_active_state_.has_value()) {
     // Use state from MCU datapoint
-    if (this->supports_heat_ && this->active_state_heating_value_.has_value() &&
-        this->active_state_ == this->active_state_heating_value_) {
+    if (this->supports_heat_ && this->dp_active_state_->mapping.heating_value == this->current_active_state_) {
       target_action = climate::CLIMATE_ACTION_HEATING;
       this->mode = climate::CLIMATE_MODE_HEAT;
-    } else if (this->supports_cool_ && this->active_state_cooling_value_.has_value() &&
-               this->active_state_ == this->active_state_cooling_value_) {
+    } else if (this->supports_cool_ && this->dp_active_state_->mapping.cooling_value == this->current_active_state_) {
       target_action = climate::CLIMATE_ACTION_COOLING;
       this->mode = climate::CLIMATE_MODE_COOL;
-    } else if (this->active_state_drying_value_.has_value() &&
-               this->active_state_ == this->active_state_drying_value_) {
+    } else if (this->dp_active_state_->mapping.drying_value == this->current_active_state_) {
       target_action = climate::CLIMATE_ACTION_DRYING;
       this->mode = climate::CLIMATE_MODE_DRY;
-    } else if (this->active_state_fanonly_value_.has_value() &&
-               this->active_state_ == this->active_state_fanonly_value_) {
+    } else if (this->dp_active_state_->mapping.fanonly_value == this->current_active_state_) {
       target_action = climate::CLIMATE_ACTION_FAN;
       this->mode = climate::CLIMATE_MODE_FAN_ONLY;
     }
@@ -534,13 +522,6 @@ void UyatClimate::switch_to_action_(climate::ClimateAction action) {
   // For now this just sets the current action but could include triggers later
   this->action = action;
 }
-
-std::string UyatClimate::get_object_id() const
-{
-  char object_id_buf[OBJECT_ID_MAX_LEN];
-  return this->get_object_id_to(object_id_buf).str();
-}
-
 
 }  // namespace uyat
 }  // namespace esphome

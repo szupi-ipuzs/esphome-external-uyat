@@ -12,7 +12,6 @@ namespace uyat {
 class UyatTextSensorMapped : public text_sensor::TextSensor, public Component {
  private:
   void on_value(const float);
-  std::string get_object_id() const;
   std::string translate(const uint32_t number_value) const;
 
  public:

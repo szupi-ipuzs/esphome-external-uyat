@@ -12,7 +12,6 @@ namespace uyat {
 class UyatTextSensor : public text_sensor::TextSensor, public Component {
  private:
   void on_value(const std::string&);
-  std::string get_object_id() const;
 
  public:
   void setup() override;

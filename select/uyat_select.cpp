@@ -40,12 +40,6 @@ void UyatSelect::on_value(const float value)
   }
 }
 
-std::string UyatSelect::get_object_id() const
-{
-  char object_id_buf[OBJECT_ID_MAX_LEN];
-  return this->get_object_id_to(object_id_buf).str();
-}
-
 void UyatSelect::dump_config() {
   LOG_SELECT("", "Uyat Select", this);
   ESP_LOGCONFIG(TAG, "  Select %s is %s", get_object_id().c_str(), this->dp_number_? this->dp_number_->get_config().to_string().c_str() : "misconfigured!");

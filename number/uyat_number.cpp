@@ -35,11 +35,5 @@ void UyatNumber::on_value(const float value)
   this->publish_state(value);
 }
 
-std::string UyatNumber::get_object_id() const
-{
-  char object_id_buf[OBJECT_ID_MAX_LEN];
-  return this->get_object_id_to(object_id_buf).str();
-}
-
 }  // namespace uyat
 }  // namespace esphome

@@ -21,8 +21,6 @@ from .. import (
    CONF_DATAPOINT_TYPE,
    Uyat,
    uyat_ns,
-   UyatDatapointType,
-   MatchingDatapoint,
    DPTYPE_BOOL,
    DPTYPE_UINT,
    DPTYPE_ENUM,
@@ -33,15 +31,18 @@ from .. import (
 DEPENDENCIES = ["uyat"]
 CODEOWNERS = ["@szupi_ipuzs"]
 
-CONF_ACTIVE_STATE = "active_state"
+ActiveStateDpValueMapping = uyat_ns.struct("ActiveStateDpValueMapping")
+
+CONF_ACTIVE_STATE_DATAPOINT = "active_state_datapoint"
 CONF_HEATING_VALUE = "heating_value"
 CONF_COOLING_VALUE = "cooling_value"
 CONF_DRYING_VALUE = "drying_value"
 CONF_FANONLY_VALUE = "fanonly_value"
-CONF_HEATING_STATE_PIN = "heating_state_pin"
-CONF_COOLING_STATE_PIN = "cooling_state_pin"
+CONF_HEATING_STATE_PIN = "heating"
+CONF_COOLING_STATE_PIN = "cooling"
 CONF_TARGET_TEMPERATURE = "target_temperature"
 CONF_CURRENT_TEMPERATURE = "current_temperature"
+CONF_ACTIVE_STATE_PINS = "pins"
 CONF_ECO = "eco"
 CONF_SLEEP = "sleep"
 CONF_SLEEP_DATAPOINT = "sleep_datapoint"
@@ -101,31 +102,36 @@ UyatClimate = uyat_ns.class_("UyatClimate", climate.Climate, cg.Component)
 
 
 def validate_cooling_values(value):
+    has_cooling_pin_defined = CONF_ACTIVE_STATE_PINS in value and CONF_COOLING_STATE_PIN in value[CONF_ACTIVE_STATE_PINS]
+    has_heating_pin_defined = CONF_ACTIVE_STATE_PINS in value and CONF_HEATING_STATE_PIN in value[CONF_ACTIVE_STATE_PINS]
+    has_cooling_mode_defined = CONF_ACTIVE_STATE_DATAPOINT in value and CONF_COOLING_VALUE in value[CONF_ACTIVE_STATE_DATAPOINT]
+    has_heating_mode_defined = CONF_ACTIVE_STATE_DATAPOINT in value and CONF_HEATING_VALUE in value[CONF_ACTIVE_STATE_DATAPOINT]
     if CONF_SUPPORTS_COOL in value:
         cooling_supported = value[CONF_SUPPORTS_COOL]
-        if not cooling_supported and CONF_ACTIVE_STATE in value:
-            active_state_config = value[CONF_ACTIVE_STATE]
-            if (
-                CONF_COOLING_VALUE in active_state_config
-                or CONF_COOLING_STATE_PIN in value
-            ):
+        if not cooling_supported:
+            if has_cooling_pin_defined or has_cooling_mode_defined:
                 raise cv.Invalid(
                     f"Device does not support cooling, but {CONF_COOLING_VALUE} or {CONF_COOLING_STATE_PIN} specified."
                     f" Please add '{CONF_SUPPORTS_COOL}: true' to your configuration."
                 )
-        elif cooling_supported and CONF_ACTIVE_STATE in value:
-            active_state_config = value[CONF_ACTIVE_STATE]
-            if (
-                CONF_COOLING_VALUE not in active_state_config
-                and CONF_COOLING_STATE_PIN not in value
-            ):
+        else:
+            if not has_cooling_pin_defined and not has_cooling_mode_defined:
                 raise cv.Invalid(
-                    f"Either {CONF_ACTIVE_STATE} {CONF_COOLING_VALUE} or {CONF_COOLING_STATE_PIN} is required if"
+                    f"Either {CONF_COOLING_VALUE} or {CONF_COOLING_STATE_PIN} is required if"
                     f" {CONF_SUPPORTS_COOL}: true' is in your configuration."
                 )
+    if CONF_SUPPORTS_HEAT in value:
+        heating_supported = value[CONF_SUPPORTS_HEAT]
+        if not heating_supported:
+            if has_heating_pin_defined or has_heating_mode_defined:
+                raise cv.Invalid(
+                    f"Device does not support heating, but {CONF_HEATING_VALUE} or {CONF_HEATING_STATE_PIN} specified."
+                    f" Please add '{CONF_SUPPORTS_HEAT}: true' to your configuration."
+                )
+
     return value
 
-SWITCH_SCHEMA = cv.Schema(
+SWITCH_CONFIG_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
                 cv.Schema(
@@ -140,7 +146,16 @@ SWITCH_SCHEMA = cv.Schema(
     },
 )
 
-ACTIVE_STATES = cv.Schema(
+ACTIVE_STATE_PINS_SCHEMA = cv.All(
+    cv.Schema(
+    {
+        cv.Optional(CONF_HEATING_STATE_PIN): pins.gpio_input_pin_schema,
+        cv.Optional(CONF_COOLING_STATE_PIN): pins.gpio_input_pin_schema,
+    }),
+    cv.has_at_least_one_key(CONF_HEATING_STATE_PIN, CONF_COOLING_STATE_PIN),
+)
+
+ACTIVE_STATE_DATAPOINT_CONFIG_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
                 cv.Schema(
@@ -151,14 +166,14 @@ ACTIVE_STATES = cv.Schema(
                     ),
                 })
         ),
-        cv.Optional(CONF_HEATING_VALUE, default=1): cv.uint8_t,
+        cv.Optional(CONF_HEATING_VALUE): cv.uint8_t,
         cv.Optional(CONF_COOLING_VALUE): cv.uint8_t,
         cv.Optional(CONF_DRYING_VALUE): cv.uint8_t,
-        cv.Optional(CONF_FANONLY_VALUE): cv.uint8_t,
-    },
+        cv.Optional(CONF_FANONLY_VALUE): cv.uint8_t
+    }
 )
 
-PRESETS = cv.Schema(
+PRESETS_CONFIG_SCHEMA = cv.All(cv.Schema(
     {
         cv.Optional(CONF_ECO): {
             cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
@@ -186,9 +201,11 @@ PRESETS = cv.Schema(
             cv.Optional(CONF_INVERTED, default=False): cv.boolean,
         }),
     },
+    cv.has_at_least_one_key(CONF_ECO, CONF_SLEEP),
+    )
 )
 
-FAN_MODES = cv.Schema(
+FAN_MODE_CONFIG_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
                 cv.Schema(
@@ -222,17 +239,17 @@ ANY_SWING_MODE_SCHEMA = cv.Schema(
     },
 )
 
-SWING_MODES = cv.All(
+SWING_MODE_CONFIG_SCHEMA = cv.All(
     cv.Schema(
     {
         cv.Optional(CONF_VERTICAL): ANY_SWING_MODE_SCHEMA,
-        cv.Optional(CONF_HORIZONTAL): ANY_SWING_MODE_SCHEMA
+        cv.Optional(CONF_HORIZONTAL): ANY_SWING_MODE_SCHEMA,
     },
     cv.has_at_least_one_key(CONF_VERTICAL, CONF_HORIZONTAL),
     )
 )
 
-TEMPERATURE_SCHEMA = cv.Schema(
+TEMPERATURE_CONFIG_SCHEMA = cv.Schema(
     {
         cv.Required(CONF_DATAPOINT): cv.Any(cv.uint8_t,
             cv.Schema(
@@ -255,16 +272,15 @@ CONFIG_SCHEMA = cv.All(
             cv.GenerateID(CONF_UYAT_ID): cv.use_id(Uyat),
             cv.Optional(CONF_SUPPORTS_HEAT, default=True): cv.boolean,
             cv.Optional(CONF_SUPPORTS_COOL, default=False): cv.boolean,
-            cv.Optional(CONF_SWITCH): SWITCH_SCHEMA,
-            cv.Optional(CONF_ACTIVE_STATE): ACTIVE_STATES,
-            cv.Optional(CONF_HEATING_STATE_PIN): pins.gpio_input_pin_schema,
-            cv.Optional(CONF_COOLING_STATE_PIN): pins.gpio_input_pin_schema,
-            cv.Optional(CONF_TARGET_TEMPERATURE): TEMPERATURE_SCHEMA,
-            cv.Optional(CONF_CURRENT_TEMPERATURE): TEMPERATURE_SCHEMA,
+            cv.Optional(CONF_SWITCH): SWITCH_CONFIG_SCHEMA,
+            cv.Optional(CONF_ACTIVE_STATE_DATAPOINT): ACTIVE_STATE_DATAPOINT_CONFIG_SCHEMA,
+            cv.Optional(CONF_ACTIVE_STATE_PINS): ACTIVE_STATE_PINS_SCHEMA,
+            cv.Optional(CONF_TARGET_TEMPERATURE): TEMPERATURE_CONFIG_SCHEMA,
+            cv.Optional(CONF_CURRENT_TEMPERATURE): TEMPERATURE_CONFIG_SCHEMA,
             cv.Optional(CONF_REPORTS_FAHRENHEIT, default=False): cv.boolean,
-            cv.Optional(CONF_PRESET): PRESETS,
-            cv.Optional(CONF_FAN_MODE): FAN_MODES,
-            cv.Optional(CONF_SWING_MODE): SWING_MODES,
+            cv.Optional(CONF_PRESET): PRESETS_CONFIG_SCHEMA,
+            cv.Optional(CONF_FAN_MODE): FAN_MODE_CONFIG_SCHEMA,
+            cv.Optional(CONF_SWING_MODE): SWING_MODE_CONFIG_SCHEMA,
         }
     )
     .extend(cv.COMPONENT_SCHEMA),
@@ -279,27 +295,41 @@ async def to_code(config):
     paren = await cg.get_variable(config[CONF_UYAT_ID])
     cg.add(var.set_uyat_parent(paren))
 
-    cg.add(var.set_supports_heat(config[CONF_SUPPORTS_HEAT]))
-    cg.add(var.set_supports_cool(config[CONF_SUPPORTS_COOL]))
-    if (switch_config := config.get(CONF_SWITCH)):
-            cg.add(var.set_switch_id(await matching_datapoint_from_config(switch_config[CONF_DATAPOINT], SWITCH_DP_TYPES), switch_config[CONF_INVERTED]))
+    cg.add(var.set_supported_modes(config[CONF_SUPPORTS_HEAT], config[CONF_SUPPORTS_COOL]))
 
-    if heating_state_pin_config := config.get(CONF_HEATING_STATE_PIN):
-        heating_state_pin = await cg.gpio_pin_expression(heating_state_pin_config)
-        cg.add(var.set_heating_state_pin(heating_state_pin))
-    if cooling_state_pin_config := config.get(CONF_COOLING_STATE_PIN):
-        cooling_state_pin = await cg.gpio_pin_expression(cooling_state_pin_config)
-        cg.add(var.set_cooling_state_pin(cooling_state_pin))
-    if active_state_config := config.get(CONF_ACTIVE_STATE):
-        cg.add(var.set_active_state_id(await matching_datapoint_from_config(active_state_config, ACTIVE_STATE_DP_TYPES)))
-        if (heating_value := active_state_config.get(CONF_HEATING_VALUE)) is not None:
-            cg.add(var.set_active_state_heating_value(heating_value))
-        if (cooling_value := active_state_config.get(CONF_COOLING_VALUE)) is not None:
-            cg.add(var.set_active_state_cooling_value(cooling_value))
-        if (drying_value := active_state_config.get(CONF_DRYING_VALUE)) is not None:
-            cg.add(var.set_active_state_drying_value(drying_value))
-        if (fanonly_value := active_state_config.get(CONF_FANONLY_VALUE)) is not None:
-            cg.add(var.set_active_state_fanonly_value(fanonly_value))
+    if switch_config := config.get(CONF_SWITCH):
+            cg.add(var.configure_switch(await matching_datapoint_from_config(switch_config[CONF_DATAPOINT], SWITCH_DP_TYPES), switch_config[CONF_INVERTED]))
+
+    if active_state_pins_config := config.get(CONF_ACTIVE_STATE_PINS):
+        if heating_pin_config := active_state_pins_config.get(CONF_HEATING_STATE_PIN):
+            cg.add(var.set_heating_state_pin(await cg.gpio_pin_expression(heating_pin_config)))
+        if cooling_pin_config := active_state_pins_config.get(CONF_COOLING_STATE_PIN):
+            cg.add(var.set_cooling_state_pin(await cg.gpio_pin_expression(cooling_pin_config)))
+
+    if active_state_config := config.get(CONF_ACTIVE_STATE_DATAPOINT):
+        if active_state_dp_config := active_state_config.get(CONF_DATAPOINT):
+            cg.add(var.set_active_state_id())
+            if (heating_value_mapping := active_state_config.get(CONF_HEATING_VALUE)) is None:
+                # never set to None, default is 1
+                heating_value_mapping = cg.uint32_t(1)
+
+            if (cooling_value_mapping := active_state_config.get(CONF_COOLING_VALUE)) is None:
+                cooling_value_mapping = cg.RawExpression("{}")
+            if (drying_value_mapping := active_state_config.get(CONF_DRYING_VALUE)) is None:
+                drying_value_mapping = cg.RawExpression("{}")
+            if (fanonly_value_mapping := active_state_config.get(CONF_FANONLY_VALUE)) is None:
+                fanonly_value_mapping = cg.RawExpression("{}")
+
+            matching_dp = await matching_datapoint_from_config(active_state_dp_config, ACTIVE_STATE_DP_TYPES);
+            mapping = cg.StructInitializer(
+                ActiveStateDpValueMapping,
+                ("heating_value", heating_value_mapping),
+                ("cooling_value", cooling_value_mapping),
+                ("drying_value", drying_value_mapping),
+                ("fanonly_value", fanonly_value_mapping),
+            )
+            cg.add(var.configure_active_state_dp(matching_dp, mapping))
+
 
     if target_temperature_config := config.get(CONF_TARGET_TEMPERATURE):
         multiplier = target_temperature_config.get(CONF_MULTIPLIER, 1.0)
@@ -325,11 +355,11 @@ async def to_code(config):
 
     if preset_config := config.get(CONF_PRESET, {}):
         if eco_config := preset_config.get(CONF_ECO, {}):
-            cg.add(var.set_eco_id(await matching_datapoint_from_config(eco_config.get(CONF_DATAPOINT), ECO_DP_TYPES), eco_config[CONF_INVERTED]))
+            cg.add(var.configure_preset_eco(await matching_datapoint_from_config(eco_config.get(CONF_DATAPOINT), ECO_DP_TYPES), eco_config[CONF_INVERTED]))
             if eco_temperature := eco_config.get(CONF_TEMPERATURE):
                 cg.add(var.set_eco_temperature(eco_temperature))
         if sleep_config := preset_config.get(CONF_SLEEP, {}):
-            cg.add(var.set_sleep_id(await matching_datapoint_from_config(sleep_config.get(CONF_DATAPOINT), SLEEP_DP_TYPES), eco_config[CONF_INVERTED]))
+            cg.add(var.configure_preset_sleep(await matching_datapoint_from_config(sleep_config.get(CONF_DATAPOINT), SLEEP_DP_TYPES), eco_config[CONF_INVERTED]))
 
     if swing_mode_config := config.get(CONF_SWING_MODE):
         if vertical_config := swing_mode_config.get(CONF_VERTICAL):

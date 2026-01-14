@@ -13,7 +13,6 @@ namespace uyat {
 class UyatNumber : public number::Number, public Component {
  private:
   void on_value(const float);
-  std::string get_object_id() const;
 
  public:
   void setup() override;

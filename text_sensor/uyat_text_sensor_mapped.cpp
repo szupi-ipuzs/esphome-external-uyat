@@ -36,12 +36,6 @@ void UyatTextSensorMapped::on_value(const float value)
   }
 }
 
-std::string UyatTextSensorMapped::get_object_id() const
-{
-  char object_id_buf[OBJECT_ID_MAX_LEN];
-  return this->get_object_id_to(object_id_buf).str();
-}
-
 std::string UyatTextSensorMapped::translate(const uint32_t number_value) const
 {
   auto it = std::find_if(this->mappings_.cbegin(), this->mappings_.cend(), [number_value](const auto& v){ return v.first == number_value; });

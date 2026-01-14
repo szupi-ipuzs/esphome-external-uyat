@@ -20,7 +20,6 @@ enum class UyatVAPValueType {
 class UyatSensorVAP : public sensor::Sensor, public Component {
  private:
   void on_value(const DpVAP::VAPValue&);
-  std::string get_object_id() const;
 
  public:
 

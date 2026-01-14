@@ -10,6 +10,14 @@
 namespace esphome {
 namespace uyat {
 
+struct ActiveStateDpValueMapping
+{
+   std::optional<uint32_t> heating_value;
+   std::optional<uint32_t> cooling_value;
+   std::optional<uint32_t> drying_value;
+   std::optional<uint32_t> fanonly_value;
+};
+
 class UyatClimate : public climate::Climate, public Component {
  private:
   void on_switch_value(const bool);
@@ -17,24 +25,32 @@ class UyatClimate : public climate::Climate, public Component {
   void on_eco_value(const bool);
   void on_target_temperature_value(const float);
   void on_current_temperature_value(const float);
-  std::string get_object_id() const;
+  void on_active_state_value(const float);
 
  public:
+
   void setup() override;
   void loop() override;
   void dump_config() override;
-  void set_supports_heat(bool supports_heat) { this->supports_heat_ = supports_heat; }
-  void set_supports_cool(bool supports_cool) { this->supports_cool_ = supports_cool; }
-  void set_switch_id(MatchingDatapoint switch_dp, const bool inverted = false) {
+  void set_supported_modes(const bool supports_heat, const bool supports_cool) {
+    this->supports_heat_ = supports_heat;
+    this->supports_cool_ = supports_cool;
+  }
+  void configure_switch(MatchingDatapoint switch_dp, const bool inverted = false) {
     this->dp_switch_.emplace([this](const bool value){this->on_switch_value(value);},
                              std::move(switch_dp),
                              inverted);
   }
-  void set_active_state_id(const MatchingDatapoint& state_id) { this->active_state_id_ = state_id; }
-  void set_active_state_heating_value(uint8_t value) { this->active_state_heating_value_ = value; }
-  void set_active_state_cooling_value(uint8_t value) { this->active_state_cooling_value_ = value; }
-  void set_active_state_drying_value(uint8_t value) { this->active_state_drying_value_ = value; }
-  void set_active_state_fanonly_value(uint8_t value) { this->active_state_fanonly_value_ = value; }
+  void configure_active_state_dp(MatchingDatapoint state_dp, const ActiveStateDpValueMapping& value_mapping)
+  {
+    this->dp_active_state_.emplace(ActiveStateDp{
+                              DpNumber([this](const float value){this->on_active_state_value(value);},
+                                       std::move(state_dp),
+                                       0.0f, 1.0f
+                                      ),
+                              value_mapping
+                            });
+  }
   void set_heating_state_pin(GPIOPin *pin) { this->heating_state_pin_ = pin; }
   void set_cooling_state_pin(GPIOPin *pin) { this->cooling_state_pin_ = pin; }
   void set_swing_vertical_id(const MatchingDatapoint& swing_vertical_id) { this->swing_vertical_id_ = swing_vertical_id; }
@@ -59,13 +75,13 @@ class UyatClimate : public climate::Climate, public Component {
                           std::move(current_temperature_dp),
                           offset, temperature_multiplier);
   }
-  void set_eco_id(MatchingDatapoint eco_dp, const bool inverted = false) {
+  void configure_preset_eco(MatchingDatapoint eco_dp, const bool inverted = false) {
     this->dp_eco_.emplace([this](const bool value){this->on_eco_value(value);},
                           std::move(eco_dp),
                           inverted);
   }
   void set_eco_temperature(float eco_temperature) { this->eco_temperature_ = eco_temperature; }
-  void set_sleep_id(MatchingDatapoint sleep_dp, const bool inverted = false) {
+  void configure_preset_sleep(MatchingDatapoint sleep_dp, const bool inverted = false) {
     this->dp_sleep_.emplace([this](const bool value){this->on_sleep_value(value);},
                              std::move(sleep_dp),
                              inverted);
@@ -76,6 +92,13 @@ class UyatClimate : public climate::Climate, public Component {
   void set_uyat_parent(Uyat *parent) { this->parent_ = parent; }
 
  protected:
+
+  struct ActiveStateDp
+  {
+     DpNumber dp_number;
+     ActiveStateDpValueMapping mapping;
+  };
+
   /// Override control to change settings of the climate device.
   void control(const climate::ClimateCall &call) override;
 
@@ -110,11 +133,7 @@ class UyatClimate : public climate::Climate, public Component {
   bool supports_heat_;
   bool supports_cool_;
   std::optional<DpSwitch> dp_switch_{};
-  optional<MatchingDatapoint> active_state_id_{};
-  optional<uint8_t> active_state_heating_value_{};
-  optional<uint8_t> active_state_cooling_value_{};
-  optional<uint8_t> active_state_drying_value_{};
-  optional<uint8_t> active_state_fanonly_value_{};
+  std::optional<ActiveStateDp> dp_active_state_{};
   GPIOPin *heating_state_pin_{nullptr};
   GPIOPin *cooling_state_pin_{nullptr};
   std::optional<DpNumber> dp_target_temperature_{};
@@ -123,7 +142,7 @@ class UyatClimate : public climate::Climate, public Component {
   std::optional<DpSwitch> dp_eco_{};
   std::optional<DpSwitch> dp_sleep_{};
   optional<float> eco_temperature_{};
-  uint8_t active_state_;
+  uint32_t current_active_state_;
   uint8_t fan_state_;
   optional<MatchingDatapoint> swing_vertical_id_{};
   optional<MatchingDatapoint> swing_horizontal_id_{};

@@ -24,7 +24,7 @@ struct DpDimmer
 
       std::string to_string() const
       {
-         return str_sprintf("%s, [%u, %u]%s", matching_dp.to_string().c_str(), min_value, max_value, inverted);
+         return str_sprintf("%s, [%u, %u]%s", matching_dp.to_string().c_str(), min_value, max_value, inverted? " inverted":"");
       }
    };
 

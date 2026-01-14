@@ -15,7 +15,6 @@ namespace uyat {
 class UyatSelect : public select::Select, public Component {
  private:
   void on_value(const float);
-  std::string get_object_id() const;
   std::optional<std::size_t> translate(const uint32_t number_value) const;
  public:
   void setup() override;

@@ -111,7 +111,7 @@ struct DpNumber
          return;
       }
 
-      ESP_LOGV(DpNumber::TAG, "Setting value to %.3f for %s", value, this->config_to_string().c_str());
+      ESP_LOGV(DpNumber::TAG, "Setting value to %.3f for %s", value, this->get_config().to_string().c_str());
       this->last_set_value_ = value;
       uint32_t raw_value = static_cast<uint32_t>(lround((value - this->config_.offset)* this->config_.multiplier));
       if (!this->config_.matching_dp.allows_single_type())

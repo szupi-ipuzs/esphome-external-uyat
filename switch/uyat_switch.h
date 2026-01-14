@@ -12,7 +12,6 @@ namespace uyat {
 class UyatSwitch : public switch_::Switch, public Component {
  private:
   void on_value(const bool);
-  std::string get_object_id() const;
 
  public:
   void setup() override;

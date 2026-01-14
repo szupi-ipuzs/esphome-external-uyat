@@ -56,7 +56,7 @@ CONFIG_SCHEMA = cv.All(
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
-                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_ENUM): cv.one_of(
                         *SELECT_DP_TYPES, lower=True
                     )
                 })

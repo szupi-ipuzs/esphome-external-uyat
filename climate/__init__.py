@@ -94,6 +94,7 @@ SWING_DP_TYPES = [
 ]
 
 FAN_SPEED_DP_TYPES = [
+    DPTYPE_DETECT,
     DPTYPE_ENUM,
     DPTYPE_UINT,
 ]
@@ -101,7 +102,7 @@ FAN_SPEED_DP_TYPES = [
 UyatClimate = uyat_ns.class_("UyatClimate", climate.Climate, cg.Component)
 
 
-def validate_cooling_values(value):
+def validate_cool_heat_values(value):
     has_cooling_pin_defined = CONF_ACTIVE_STATE_PINS in value and CONF_COOLING_STATE_PIN in value[CONF_ACTIVE_STATE_PINS]
     has_heating_pin_defined = CONF_ACTIVE_STATE_PINS in value and CONF_HEATING_STATE_PIN in value[CONF_ACTIVE_STATE_PINS]
     has_cooling_mode_defined = CONF_ACTIVE_STATE_DATAPOINT in value and CONF_COOLING_VALUE in value[CONF_ACTIVE_STATE_DATAPOINT]
@@ -137,7 +138,7 @@ SWITCH_CONFIG_SCHEMA = cv.Schema(
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
-                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
                         *SWITCH_DP_TYPES, lower=True
                     ),
                 })
@@ -146,7 +147,7 @@ SWITCH_CONFIG_SCHEMA = cv.Schema(
     },
 )
 
-ACTIVE_STATE_PINS_SCHEMA = cv.All(
+ACTIVE_STATE_PINS_CONFIG_SCHEMA = cv.All(
     cv.Schema(
     {
         cv.Optional(CONF_HEATING_STATE_PIN): pins.gpio_input_pin_schema,
@@ -161,7 +162,7 @@ ACTIVE_STATE_DATAPOINT_CONFIG_SCHEMA = cv.Schema(
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
-                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_ENUM): cv.one_of(
                         *ACTIVE_STATE_DP_TYPES, lower=True
                     ),
                 })
@@ -180,7 +181,7 @@ PRESETS_CONFIG_SCHEMA = cv.All(cv.Schema(
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
-                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
                         *ECO_DP_TYPES, lower=True
                     ),
                 }),
@@ -211,7 +212,7 @@ FAN_MODE_CONFIG_SCHEMA = cv.Schema(
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
-                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_ENUM): cv.one_of(
                         *FAN_SPEED_DP_TYPES, lower=True
                     ),
                 })
@@ -230,7 +231,7 @@ ANY_SWING_MODE_SCHEMA = cv.Schema(
                 cv.Schema(
                 {
                     cv.Required(CONF_NUMBER): cv.uint8_t,
-                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                    cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
                         *SWING_DP_TYPES, lower=True
                     ),
                 })
@@ -255,7 +256,7 @@ TEMPERATURE_CONFIG_SCHEMA = cv.Schema(
             cv.Schema(
             {
                 cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_UINT): cv.one_of(
                     *TEMPERATURE_DP_TYPES, lower=True
                 ),
             })
@@ -274,7 +275,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_SUPPORTS_COOL, default=False): cv.boolean,
             cv.Optional(CONF_SWITCH): SWITCH_CONFIG_SCHEMA,
             cv.Optional(CONF_ACTIVE_STATE_DATAPOINT): ACTIVE_STATE_DATAPOINT_CONFIG_SCHEMA,
-            cv.Optional(CONF_ACTIVE_STATE_PINS): ACTIVE_STATE_PINS_SCHEMA,
+            cv.Optional(CONF_ACTIVE_STATE_PINS): ACTIVE_STATE_PINS_CONFIG_SCHEMA,
             cv.Optional(CONF_TARGET_TEMPERATURE): TEMPERATURE_CONFIG_SCHEMA,
             cv.Optional(CONF_CURRENT_TEMPERATURE): TEMPERATURE_CONFIG_SCHEMA,
             cv.Optional(CONF_REPORTS_FAHRENHEIT, default=False): cv.boolean,
@@ -285,7 +286,7 @@ CONFIG_SCHEMA = cv.All(
     )
     .extend(cv.COMPONENT_SCHEMA),
     cv.has_at_least_one_key(CONF_TARGET_TEMPERATURE, CONF_SWITCH),
-    validate_cooling_values,
+    validate_cool_heat_values,
 )
 
 async def to_code(config):

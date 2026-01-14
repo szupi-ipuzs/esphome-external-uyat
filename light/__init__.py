@@ -71,7 +71,7 @@ SWITCH_CONFIG_SCHEMA = cv.Schema(
             cv.Schema(
             {
                 cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_BOOL): cv.one_of(
                     *SWITCH_DP_TYPES, lower=True
                 )
             })
@@ -86,7 +86,7 @@ DIMMER_CONFIG_SCHEMA = cv.Schema(
             cv.Schema(
             {
                 cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_UINT): cv.one_of(
                     *DIMMER_DP_TYPES, lower=True
                 )
             })
@@ -98,7 +98,7 @@ DIMMER_CONFIG_SCHEMA = cv.Schema(
             cv.Schema(
             {
                 cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_UINT): cv.one_of(
                     *MIN_VALUE_DP_TYPES, lower=True
                 )
             })
@@ -127,7 +127,7 @@ WHITE_TEMPERATURE_SCHEMA = cv.Schema(
             cv.Schema(
             {
                 cv.Required(CONF_NUMBER): cv.uint8_t,
-                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_DETECT): cv.one_of(
+                cv.Optional(CONF_DATAPOINT_TYPE, default=DPTYPE_UINT): cv.one_of(
                     *WHITE_TEMPERATURE_DP_TYPES, lower=True
                 )
             })

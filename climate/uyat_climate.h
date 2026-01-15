@@ -315,10 +315,11 @@ class UyatClimate : public climate::Climate, public Component {
 
     void apply_preset(const esphome::climate::ClimatePreset preset_to_apply)
     {
+      ESP_LOGV(TAG, "Applying preset: %d", preset_to_apply);
       if (boost.dp.has_value()) {
         const bool boost_value = preset_to_apply == climate::CLIMATE_PRESET_BOOST;
         ESP_LOGV(TAG, "Setting boost: %s", ONOFF(boost_value));
-        eco.dp->set_value(boost_value);
+        boost.dp->set_value(boost_value);
       }
       if (eco.dp.has_value()) {
         const bool eco_value = preset_to_apply == climate::CLIMATE_PRESET_ECO;

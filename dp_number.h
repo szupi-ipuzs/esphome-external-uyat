@@ -103,7 +103,7 @@ struct DpNumber
       return config_;
    }
 
-   void set_value(const float value)
+   void set_value(const float value, const bool forced = false)
    {
       if (this->handler_ == nullptr)
       {
@@ -124,7 +124,7 @@ struct DpNumber
          this->handler_->set_datapoint_value(UyatDatapoint{
             this->config_.matching_dp.number,
             BitmapDatapointValue{raw_value}
-         });
+         }, forced);
       }
       else
       if (this->config_.matching_dp.matches(UyatDatapointType::BOOLEAN))
@@ -132,21 +132,21 @@ struct DpNumber
          this->handler_->set_datapoint_value(UyatDatapoint{
             this->config_.matching_dp.number,
             BoolDatapointValue{raw_value != 0u}
-         });
+         }, forced);
       }
       else if (this->config_.matching_dp.matches(UyatDatapointType::INTEGER))
       {
          this->handler_->set_datapoint_value(UyatDatapoint{
             this->config_.matching_dp.number,
             UIntDatapointValue{raw_value}
-         });
+         }, forced);
       }
       else if (this->config_.matching_dp.matches(UyatDatapointType::ENUM))
       {
          this->handler_->set_datapoint_value(UyatDatapoint{
             this->config_.matching_dp.number,
             EnumDatapointValue{static_cast<uint8_t>(raw_value)}
-         });
+         }, forced);
       }
       else
       {

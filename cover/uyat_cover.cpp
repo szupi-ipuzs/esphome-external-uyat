@@ -10,14 +10,28 @@ const uint8_t COMMAND_STOP = 0x01;
 
 using namespace esphome::cover;
 
-static const char *const TAG = "uyat.cover";
+void UyatCover::on_position_value(const float value_percent)
+{
+  ESP_LOGD(UyatCover::TAG, "MCU reported position %.0f%%", value_percent * 100);
+  this->position = value_percent;
+  this->publish_state();
+}
 
 void UyatCover::setup() {
-  this->value_range_ = this->max_value_ - this->min_value_;
+
+  this->position_.init(*(this->parent_));
+  if (this->control_.has_value())
+  {
+    this->control_->init(*(this->parent_));
+  }
+  if (this->direction_.has_value())
+  {
+    this->direction_->init(*(this->parent_));
+  }
 
   this->parent_->add_on_initialized_callback([this]() {
     // Set the direction (if configured/supported).
-    this->set_direction_(this->invert_position_);
+    this->apply_direction_();
 
     // Handle configured restore mode.
     switch (this->restore_mode_) {
@@ -38,108 +52,83 @@ void UyatCover::setup() {
       }
     }
   });
-
-  uint8_t report_id = *this->position_id_;
-  if (this->position_report_id_.has_value()) {
-    // A position report datapoint is configured; listen to that instead.
-    report_id = *this->position_report_id_;
-  }
-
-  this->parent_->register_datapoint_listener(report_id, [this](const UyatDatapoint &datapoint) {
-    auto * dp_value = std::get_if<UIntDatapointValue>(&datapoint.value);
-    if (!dp_value)
-    {
-      ESP_LOGW(TAG, "Unexpected datapoint type!");
-      return;
-    }
-
-    if (dp_value->value == 123) {
-      ESP_LOGD(TAG, "Ignoring MCU position report - not calibrated");
-      return;
-    }
-    auto pos = float(dp_value->value - this->min_value_) / this->value_range_;
-    this->position = this->invert_position_report_ ? pos : 1.0f - pos;
-    this->publish_state();
-  });
 }
 
 void UyatCover::control(const cover::CoverCall &call) {
   if (call.get_stop()) {
-    if (this->control_id_.has_value()) {
-      this->parent_->force_set_enum_datapoint_value(*this->control_id_, COMMAND_STOP);
-    } else {
-      auto pos = this->position;
-      pos = this->invert_position_report_ ? pos : 1.0f - pos;
-      auto position_int = static_cast<uint32_t>(pos * this->value_range_);
-      position_int = position_int + this->min_value_;
-
-      parent_->force_set_integer_datapoint_value(*this->position_id_, position_int);
+    if (this->control_.has_value() && this->control_->supports_stop()) {
+      ESP_LOGD(UyatCover::TAG, "Sending stop via command");
+      this->control_->stop();
+    } else if (this->position_.supports_setting_position()){
+      ESP_LOGD(UyatCover::TAG, "Sending stop via position (%0.0f)", this->position * 100);
+      this->position_.set_position(this->position);
+    }
+    else
+    {
+      ESP_LOGE(UyatCover::TAG, "Misconfiguration! Could not stop");
     }
   }
   if (call.get_position().has_value()) {
     auto pos = *call.get_position();
-    if (this->control_id_.has_value() && (pos == COVER_OPEN || pos == COVER_CLOSED)) {
-      if (pos == COVER_OPEN) {
-        this->parent_->force_set_enum_datapoint_value(*this->control_id_, COMMAND_OPEN);
-      } else {
-        this->parent_->force_set_enum_datapoint_value(*this->control_id_, COMMAND_CLOSE);
+    bool handled_by_command = false;
+    if (pos == COVER_OPEN)
+    {
+      if (this->control_.has_value() && (this->control_->supports_open()))
+      {
+        ESP_LOGD(UyatCover::TAG, "Sending open command");
+        this->control_->open();
+        handled_by_command = true;
       }
-    } else {
-      pos = this->invert_position_report_ ? pos : 1.0f - pos;
-      auto position_int = static_cast<uint32_t>(pos * this->value_range_);
-      position_int = position_int + this->min_value_;
+    }
+    else
+    if (pos == COVER_CLOSED)
+    {
+      if (this->control_.has_value() && (this->control_->supports_close()))
+      {
+        ESP_LOGD(UyatCover::TAG, "Sending close command");
+        this->control_->close();
+        handled_by_command = true;
+      }
+    }
+    else {}
 
-      parent_->force_set_integer_datapoint_value(*this->position_id_, position_int);
+    if (!handled_by_command)
+    {
+      if (this->position_.supports_setting_position()){
+        ESP_LOGD(UyatCover::TAG, "Setting position to %.0f%%", pos * 100);
+        this->position_.set_position(pos);
+      }
+      else
+      {
+        ESP_LOGE(UyatCover::TAG, "Misconfiguration! Could not set position!");
+      }
     }
   }
 
   this->publish_state();
 }
 
-void UyatCover::set_direction_(bool inverted) {
-  if (!this->direction_id_.has_value()) {
-    return;
+void UyatCover::apply_direction_() {
+  if (this->direction_.has_value()) {
+    this->direction_->set_value(true);
   }
-
-  if (inverted) {
-    ESP_LOGD(TAG, "Setting direction: inverted");
-  } else {
-    ESP_LOGD(TAG, "Setting direction: normal");
-  }
-
-  this->parent_->set_boolean_datapoint_value(*this->direction_id_, inverted);
 }
 
 void UyatCover::dump_config() {
-  ESP_LOGCONFIG(TAG, "Uyat Cover:");
-  if (this->invert_position_) {
-    if (this->direction_id_.has_value()) {
-      ESP_LOGCONFIG(TAG, "   Inverted");
-    } else {
-      ESP_LOGCONFIG(TAG, "   Configured as Inverted, but direction_datapoint isn't configured");
-    }
+  ESP_LOGCONFIG(UyatCover::TAG, "Uyat Cover:");
+  if (this->control_.has_value()) {
+    this->control_->dump_config();
   }
-  if (this->invert_position_report_) {
-    ESP_LOGCONFIG(TAG, "   Position Reporting Inverted");
+  if (this->direction_.has_value()) {
+    ESP_LOGCONFIG(UyatCover::TAG, "   Direction is %s", this->direction_->get_config().to_string().c_str());
   }
-  if (this->control_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "   Control has datapoint ID %u", *this->control_id_);
-  }
-  if (this->direction_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "   Direction has datapoint ID %u", *this->direction_id_);
-  }
-  if (this->position_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "   Position has datapoint ID %u", *this->position_id_);
-  }
-  if (this->position_report_id_.has_value()) {
-    ESP_LOGCONFIG(TAG, "   Position Report has datapoint ID %u", *this->position_report_id_);
-  }
+  this->position_.dump_config();
 }
 
 cover::CoverTraits UyatCover::get_traits() {
   auto traits = cover::CoverTraits();
-  traits.set_supports_stop(true);
-  traits.set_supports_position(true);
+  traits.set_supports_stop((this->control_.has_value() && this->control_->supports_stop()) || (this->position_.supports_setting_position()));
+  traits.set_supports_position(this->position_.supports_setting_position());
   return traits;
 }
 

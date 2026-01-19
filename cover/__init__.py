@@ -34,7 +34,11 @@ CONF_POSITION_REPORT_DATAPOINT = "position_report_datapoint"
 CONF_UNCALIBRATED_VALUE = "uncalibrated_value"
 
 UyatCover = uyat_ns.class_("UyatCover", cover.Cover, cg.Component)
-ControlDpValueMapping = uyat_ns.struct("ControlDpValueMapping")
+UyatCoverControlDpValueMapping = uyat_ns.struct("UyatCover::ControlDpValueMapping")
+UyatCoverConfigControl = uyat_ns.struct("UyatCover::ConfigControl")
+UyatCoverDirectionConfig = uyat_ns.struct("UyatCover::DirectionConfig")
+UyatCoverPositionConfig = uyat_ns.struct("UyatCover::PositionConfig")
+UyatCoverConfig = uyat_ns.struct("UyatCover::Config")
 
 UyatCoverRestoreMode = uyat_ns.enum("UyatCoverRestoreMode")
 RESTORE_MODES = {
@@ -168,20 +172,24 @@ CONFIG_SCHEMA = cv.All(
 
 
 async def to_code(config):
-    var = await cover.new_cover(config, await cg.get_variable(config[CONF_UYAT_ID]))
-    await cg.register_component(var, config)
-
     if control_config := config.get(CONF_CONTROL):
-        matching_dp = await matching_datapoint_from_config(control_config[CONF_DATAPOINT], CONTROL_DP_TYPES)
-        mapping = cg.StructInitializer(ControlDpValueMapping,
+        mapping = cg.StructInitializer(UyatCoverControlDpValueMapping,
                                        ("open_value", control_config.get(CONF_OPEN_VALUE)),
                                        ("close_value", control_config.get(CONF_CLOSE_VALUE)),
                                        ("stop_value", control_config.get(CONF_STOP_VALUE)),
                                        )
-        cg.add(var.configure_control(matching_dp, mapping))
+        control_conf_struct = cg.StructInitializer(UyatCoverConfigControl,
+                                                   ("matching_dp", await matching_datapoint_from_config(control_config[CONF_DATAPOINT], CONTROL_DP_TYPES)),
+                                                   ("mapping", mapping))
+    else:
+        control_conf_struct = cg.RawExpression("{}")
+
     if direction_config := config.get(CONF_DIRECTION):
-        cg.add(var.configure_direction(await matching_datapoint_from_config(direction_config[CONF_DATAPOINT], DIRECTION_DP_TYPES),
-                                       direction_config[CONF_INVERTED]))
+        direction_conf_struct = cg.StructInitializer(UyatCoverDirectionConfig,
+                                                     ("matching_dp", await matching_datapoint_from_config(direction_config[CONF_DATAPOINT], DIRECTION_DP_TYPES)),
+                                                     ("inverted", direction_config[CONF_INVERTED]))
+    else:
+        direction_conf_struct = cg.RawExpression("{}")
 
     position_config = config.get(CONF_POSITION)
     if CONF_POSITION_DATAPOINT in position_config:
@@ -197,9 +205,19 @@ async def to_code(config):
     else:
         uncalibrated_value = cg.RawExpression("{}")
 
-    cg.add(var.configure_position(position_dp, position_report_dp,
-                                position_config[CONF_INVERTED],
-                                position_config[CONF_MIN_VALUE], position_config[CONF_MAX_VALUE],
-                                uncalibrated_value))
+    position_conf_struct = cg.StructInitializer(UyatCoverPositionConfig,
+                                                ("position_dp", position_dp),
+                                                ("position_report_dp", position_report_dp),
+                                                ("inverted", position_config[CONF_INVERTED]),
+                                                ("min_value", position_config[CONF_MIN_VALUE]),
+                                                ("max_value", position_config[CONF_MAX_VALUE]),
+                                                ("uncalibrated_value", uncalibrated_value))
 
-    cg.add(var.set_restore_mode(config[CONF_RESTORE_MODE]))
+    final_conf_struct = cg.StructInitializer(UyatCoverConfig,
+                                             ("position_config", position_conf_struct),
+                                             ("control_config", control_conf_struct),
+                                             ("direction_config", direction_conf_struct),
+                                             ("restore_mode", config[CONF_RESTORE_MODE]))
+
+    var = await cover.new_cover(config, await cg.get_variable(config[CONF_UYAT_ID]), final_conf_struct)
+    await cg.register_component(var, config)

@@ -17,70 +17,56 @@ enum UyatCoverRestoreMode {
   COVER_RESTORE_AND_CALL,
 };
 
-struct ControlDpValueMapping
-{
-  std::optional<uint32_t> open_value;
-  std::optional<uint32_t> close_value;
-  std::optional<uint32_t> stop_value;
-};
-
 class UyatCover : public cover::Cover, public Component {
+ public:
+
+  struct ControlDpValueMapping
+  {
+    std::optional<uint32_t> open_value;
+    std::optional<uint32_t> close_value;
+    std::optional<uint32_t> stop_value;
+  };
+
+  struct ConfigControl
+  {
+    MatchingDatapoint matching_dp;
+    ControlDpValueMapping mapping;
+  };
+
+  struct DirectionConfig
+  {
+    MatchingDatapoint matching_dp;
+    bool inverted;
+  };
+
+  struct PositionConfig
+  {
+    std::optional<MatchingDatapoint> position_dp;
+    std::optional<MatchingDatapoint> position_report_dp;
+    bool inverted;
+    uint32_t min_value;
+    uint32_t max_value;
+    std::optional<uint32_t> uncalibrated_value;
+  };
+
+  struct Config
+  {
+    PositionConfig position_config;
+    std::optional<ConfigControl> control_config;
+    std::optional<DirectionConfig> direction_config;
+    UyatCoverRestoreMode restore_mode;
+  };
+
+  explicit UyatCover(Uyat *parent, Config config);
+
+  void setup() override;
+  void dump_config() override;
+
  private:
 
   static constexpr const char* TAG = "uyat.cover";
 
-  void on_position_value(const float);
-
- public:
-  explicit UyatCover(Uyat *parent):
-  parent_(parent)
-  {}
-
-  void setup() override;
-  void dump_config() override;
-  void configure_control(MatchingDatapoint matching_dp, const ControlDpValueMapping& mapping) {
-    this->control_.emplace(
-      DpNumber([this](const float){},
-               std::move(matching_dp),
-               0.0f, 1.0f
-      ),
-      mapping
-    );
-  }
-  void configure_direction(MatchingDatapoint matching_dp, const bool inverted) {
-    this->direction_.emplace([this](const bool){},
-                             std::move(matching_dp),
-                             inverted
-                            );
-  }
-  void configure_position(std::optional<MatchingDatapoint> position_dp, std::optional<MatchingDatapoint> position_report_dp,
-                          const bool inverted,
-                          const uint32_t min_value, const uint32_t max_value,
-                          std::optional<uint32_t> uncalibrated_value){
-    DpDimmer::BrightnessChangedCallback on_position_lambda = [this](const float value){this->on_position_value(value);};
-    if (position_report_dp)
-    {
-      this->position_.report_dp_position.emplace(on_position_lambda,
-               std::move(*position_report_dp),
-               min_value, max_value, inverted);
-      on_position_lambda = [](const float){};
-    }
-
-    if (position_dp)
-    {
-      this->position_.dp_position.emplace(
-                  on_position_lambda,
-                  std::move(*position_dp),
-                  min_value, max_value, inverted);
-    }
-
-    this->position_.uncalibrated_value = uncalibrated_value;
-  }
-  void set_restore_mode(UyatCoverRestoreMode restore_mode) { restore_mode_ = restore_mode; }
-
- protected:
-
-  struct Control
+  struct ControlHandler
   {
     DpNumber dp_number;
     ControlDpValueMapping mapping;
@@ -139,8 +125,29 @@ class UyatCover : public cover::Cover, public Component {
     }
   };
 
-  struct Position
+  struct PositionHandler
   {
+    PositionHandler(PositionConfig&& config, DpDimmer::BrightnessChangedCallback on_position_lambda)
+    {
+      if (config.position_report_dp)
+      {
+        report_dp_position.emplace(on_position_lambda,
+                  std::move(*config.position_report_dp),
+                  config.min_value, config.max_value, config.inverted);
+        on_position_lambda = [](const float){};
+      }
+
+      if (config.position_dp)
+      {
+        dp_position.emplace(
+                    on_position_lambda,
+                    std::move(*config.position_dp),
+                    config.min_value, config.max_value, config.inverted);
+      }
+
+      uncalibrated_value = config.uncalibrated_value;
+    }
+
     std::optional<DpDimmer> dp_position;
     std::optional<DpDimmer> report_dp_position;
     std::optional<uint32_t> uncalibrated_value;
@@ -186,14 +193,20 @@ class UyatCover : public cover::Cover, public Component {
   };
 
   void control(const cover::CoverCall &call) override;
-  void apply_direction_();
   cover::CoverTraits get_traits() override;
 
-  Uyat *parent_;
+  void configure_control(ConfigControl&& config);
+  void configure_direction(DirectionConfig&& config);
+  void configure_position(PositionConfig&& config);
+  void apply_direction_();
+
+  void on_position_value(const float);
+
+  Uyat& parent_;
   UyatCoverRestoreMode restore_mode_{};
-  std::optional<Control> control_{};
+  std::optional<ControlHandler> control_{};
   std::optional<DpSwitch> direction_{};
-  Position position_{};
+  PositionHandler position_;
 };
 
 }  // namespace uyat

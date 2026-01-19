@@ -1,14 +1,22 @@
 #include "esphome/core/log.h"
 #include "uyat_cover.h"
 
-namespace esphome {
-namespace uyat {
+namespace esphome::uyat {
 
-const uint8_t COMMAND_OPEN = 0x00;
-const uint8_t COMMAND_CLOSE = 0x02;
-const uint8_t COMMAND_STOP = 0x01;
-
-using namespace esphome::cover;
+UyatCover::UyatCover(Uyat *parent, Config config):
+parent_(*parent),
+restore_mode_(config.restore_mode),
+position_(std::move(config.position_config), [this](const float value){this->on_position_value(value);})
+{
+  if (config.control_config)
+  {
+    configure_control(std::move(*config.control_config));
+  }
+  if (config.direction_config)
+  {
+    configure_direction(std::move(*config.direction_config));
+  }
+}
 
 void UyatCover::on_position_value(const float value_percent)
 {
@@ -17,19 +25,36 @@ void UyatCover::on_position_value(const float value_percent)
   this->publish_state();
 }
 
+void UyatCover::configure_control(ConfigControl&& config) {
+  this->control_.emplace(
+    DpNumber([this](const float){},
+              std::move(config.matching_dp),
+              0.0f, 1.0f
+    ),
+    std::move(config.mapping)
+  );
+}
+
+void UyatCover::configure_direction(DirectionConfig&& config) {
+  this->direction_.emplace([this](const bool){},
+                            std::move(config.matching_dp),
+                            config.inverted
+                          );
+}
+
 void UyatCover::setup() {
 
-  this->position_.init(*(this->parent_));
+  this->position_.init(this->parent_);
   if (this->control_.has_value())
   {
-    this->control_->init(*(this->parent_));
+    this->control_->init(this->parent_);
   }
   if (this->direction_.has_value())
   {
-    this->direction_->init(*(this->parent_));
+    this->direction_->init(this->parent_);
   }
 
-  this->parent_->add_on_initialized_callback([this]() {
+  this->parent_.add_on_initialized_callback([this]() {
     // Set the direction (if configured/supported).
     this->apply_direction_();
 
@@ -71,7 +96,7 @@ void UyatCover::control(const cover::CoverCall &call) {
   if (call.get_position().has_value()) {
     auto pos = *call.get_position();
     bool handled_by_command = false;
-    if (pos == COVER_OPEN)
+    if (esphome::cover::COVER_OPEN == pos)
     {
       if (this->control_.has_value() && (this->control_->supports_open()))
       {
@@ -81,7 +106,7 @@ void UyatCover::control(const cover::CoverCall &call) {
       }
     }
     else
-    if (pos == COVER_CLOSED)
+    if (esphome::cover::COVER_CLOSED == pos)
     {
       if (this->control_.has_value() && (this->control_->supports_close()))
       {
@@ -132,5 +157,4 @@ cover::CoverTraits UyatCover::get_traits() {
   return traits;
 }
 
-}  // namespace uyat
-}  // namespace esphome
+}  // namespace esphome::uyat

@@ -175,8 +175,8 @@ There are also special values that you can use as type in some cases:
 - `detect` - we will use the type that the MCU reported for the datapoint. See [here](#autodetection-of-datapoint-type).
 
 ## Specifing a datapoint
-Most of the time when you specify a datapoint you can do it in two forms: a short form and a long form.
-
+Most of the time when you specify a datapoint you can do it in three forms:
+### Short form
 Short form only requires to specify the number, while the type is automatically set to a default type, which depends on the context - see the [detailed description of components](#components).
 Example of short form
 ```yaml
@@ -185,7 +185,11 @@ switch:
   datapoint: 5
 ```
 
-Long form allows specifying also the `datapoint_type`.
+### Long form
+Long form allows specifying also the `datapoint_type`:
+- `number` (required, number) - the datapoint number
+- `datapoint_type` (optional, enum), one of the [types](#types), if not specified a default type is used, which depends on the context - see the [detailed description of components](#components).
+
 Example of long form:
 ```yaml
 switch:
@@ -195,7 +199,14 @@ switch:
     datapoint_type: enum
 ```
 
-In general I recommend to specify the type, as the default type does is not always the correct one.
+## Long form with payload
+So far used only for buttons, requires additionally to specify the `trigger_payload`:
+- `number` (required, number) - the datapoint number
+- `datapoint_type` (optional, enum), one of the [types](#types), if not specified a default type is used, which depends on the context - see the [detailed description of components](#components).
+- `trigger_payload` (required) - the datapoint value, must match the selected type.
+
+
+In general I recommend to specify the type explicitly, as the default type is not always the correct one.
 
 ## Autodetection of datapoint type
 In some cases it is allowed to specify `datapoint_type: detect`. While this sounds convenient, I would advise *not to use it* with components that send a datapoint value to the MCU (most of them do). Here's why: sending datapoint value to the MCU can only be done if the type is known. So if the MCU does not report a specific datapoint first (some devices do that), then you will never be able to set it.
@@ -204,12 +215,13 @@ This means you can safely use it with sensor and binary_sensor, or when you're s
 # Components
 ## Binary Sensor
 When creating a binary sensor entity (ie. a true/false value) you need to specify:
-- `datapoint` (required) - either the short or long form. Allowed types: `detect`, `bool`, `value`, `enum`, `bitmap`. The default type is `bool`.
+- `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`, `bitmap`. The default type is `bool`.
 - `bit_number` (optional, 1-32) - the bit to check in the value. Note that the number is 1-based.
 - all other options from the [Esphome Binary Sensor](https://esphome.io/components/binary_sensor/)
 
 If `bit_number` is specified, the sensor will be evaluated to `True` if the bit is set in the received value.
 If `bit_number` is not specified, the sensor will be evaluated to `True` if the value is non-zero.
+The actual value of the sensor can be altered by the filters common for all binary sensors (see [Esphome Binary Sensor](https://esphome.io/components/binary_sensor/)).
 
 Example usage:
 ```yaml
@@ -243,7 +255,7 @@ binary_sensor:
 
 ## Button
 When creating a button entity, you need to specify:
-- `datapoint` (required) - must be in its long form with payload. Allowed types: `bool`, `value`, `enum`. The default type is `bool`.
+- `datapoint` (required) - must be in its [long form with payload](#long-form-with-payload). Allowed types: `bool`, `value`, `enum`. The default type is `bool`.
 - all other options from the [Esphome Button](https://esphome.io/components/button/)
 
 Examples:
@@ -260,16 +272,21 @@ Examples:
 
 ## Number
 When creating a number entity, you need to specify:
-- `datapoint` (required) - either the short or long form. Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+- `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
 - `min_value` (required) - the minimum value of the entity
 - `min_value` (required) - the maximum value of the entity
 - `step` (required) - the granularity
 - `multiplier` (optional, exclusive with `multiplier`) - the value received from the MCU will be multiplied by this number and the result will be set as the entity state. The value set to the MCU will be divided by this number before sending.
 - `scale` (optional, exclusive with `multiplier`) - same as `multiplier`, but sets the multiplier to 10^scale
-- `offset` (optional) - the value received from the MCU will be be increased by `offset`. The value set to the MCU will be decrease by `offset`.
+- `offset` (optional) - the value received from the MCU will be be increased by `offset`. The value set to the MCU will be decreased by `offset`.
 - all other options from the [Esphome Number](https://esphome.io/components/number/)
 
 ## Select
+When creating a select entity you need to specify:
+- `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `enum`.
+- `options` (required) - the mapping between the MCU values and the entity values
+- `optimistic` (optional, bool) - if True, then setting the entity value will take effect immediately, without waiting for the MCU to answer. Defautl is false.
+
 ## Sensor
 ## Switch
 ## Text Sensor
@@ -281,7 +298,7 @@ When creating a number entity, you need to specify:
 
 
 # Shoulders of the giants
-Even though I don't like the original tuya component, I still think the Esphome Team did a great job with it. Without it I would never be able to write Uyat and I have learnt a great deal just from studying it.
+Even though I don't like the original tuya component, I still think the Esphome Team did a great job with it. I would never be able to write Uyat without it and I have learnt a great deal just from studying it.
 Thank you Esphome Team!
 
 # Still to do

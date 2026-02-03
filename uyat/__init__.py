@@ -52,14 +52,14 @@ FACTORY_RESET_TYPES = {
     "APP_WIPE": FactoryResetType.BY_APP_WIPE,
 }
 
-DPTYPE_ANY = "uyat_any"
-DPTYPE_DETECT = "uyat_detect"
-DPTYPE_RAW = "uyat_raw"
-DPTYPE_BOOL = "uyat_bool"
-DPTYPE_UINT = "uyat_uint"
-DPTYPE_STRING = "uyat_string"
-DPTYPE_ENUM = "uyat_enum"
-DPTYPE_BITMAP = "uyat_bitmap"
+DPTYPE_ANY = "any"
+DPTYPE_DETECT = "detect"
+DPTYPE_RAW = "raw"
+DPTYPE_BOOL = "bool"
+DPTYPE_UINT = "value"
+DPTYPE_STRING = "string"
+DPTYPE_ENUM = "enum"
+DPTYPE_BITMAP = "bitmap"
 
 DP_TYPES_TRANSLATED = {
     DPTYPE_RAW: UyatDatapointType.RAW,

@@ -1,7 +1,7 @@
 # What is this?
 This repo contains esphome external component with alternative implementation of TuyaMCU protocol(s). While esphome already supports TuyaMCU via the [tuya component](https://esphome.io/components/tuya/), I found it incomplete, outdated and inflexible, and it was very hard to make it work with some of my devices. Also it only supports the standard TuyaMCU protocol, which make it useless when dealing with eg. battery devices.
 
-Although Uyat originated from the esphome tuya component, I decided not to keep its yaml syntax. It might be similar, but sometimes there are significant differences, so please make sure to read the [description for each platform](#supported-esphome-platforms).
+Although Uyat originated from the esphome tuya component, I decided not to keep its yaml syntax. It might be similar, but sometimes there are significant differences, so please make sure to read the [description for each component](#supported-esphome-components).
 
 This readme assumes the user already knows how to deal with TuyaMCU devices, what datapoints are and how to find the list and description of the datapoints for their devices. In the future I might also write a guide on how to do that, but till then, use google and ask on forums like [elektroda](http://elektroda.com).
 
@@ -10,7 +10,7 @@ This readme assumes the user already knows how to deal with TuyaMCU devices, wha
 - [Low-power protocol](https://developer.tuya.com/en/docs/iot/tuyacloudlowpoweruniversalserialaccessprotocol?id=K95afs9h4tjjh) (TBD)
 - [Lock protocol](https://developer.tuya.com/en/docs/iot/door-lock-mcu-protocol?id=Kcmktkdx4hovi) (TBD)
 
-# Supported esphome platforms
+# Supported esphome components
 ## Basic (single-dpids)
 - [Binary Sensor](#binary-sensor)
 - [Button](#button)
@@ -100,7 +100,7 @@ Each of the above entries is optional, each creates a text entity.
 - `pairing mode` - this shows the current pairing mode as seen by the MCU. The possible values are: `ap`, `smartconfig` and `none`. Some devices will not send their datapoints unless pairing is complete and the device is connected to the cloud.
 
 ## Manual parsing of datapoint data
-If you find that none of the [platforms](#supported-esphome-platforms) support your specific datapoints, there's an option to do the parsing manually in a lambda - in the same way it was done in the original esphome tuya implementation, eg:
+If you find that none of the [components](#supported-esphome-components) support your specific datapoints, there's an option to do the parsing manually in a lambda - in the same way it was done in the original esphome tuya implementation, eg:
 
 ```yaml
 uyat:
@@ -115,6 +115,7 @@ uyat:
 ```
 The `x` passed to lambda contains the payload of the datapoint as sent by the MCU. The type of x depends on datapoint_type.
 You can also pass `datapoint_type: any`, in which case x carries the whole UyatDatapoint structure. See the source code on how to use it.
+Note that if you specify a different type than `any`, your lambda will NOT be called if the type does not match.
 
 ## Reporting AP name
 For some unknown reason, [the MCU may ask us](https://developer.tuya.com/en/docs/iot/tuya-cloud-universal-serial-port-access-protocol?id=K9hhi0xxtn9cb#subtitle-81-Get%20information%20about%20Wi-Fi%20module) about the base SSID we use in AP mode. I suspect this might be a way for the MCU to detect "re-branded" devices and modify its behavior depending on the brand.
@@ -155,10 +156,119 @@ button:
             type: APP_WIPE
 ```
 
-# Platforms
+# Datapoints
+To be able to correctly control the device, this implementation needs to know its datapoints, both their numbers and their types.
+You need to specify them as part of yaml config for a specific component.
+## Types
+Using correct type for a datapoint is crucial for the implementation. In case of type mismatch (ie. the MCU sends different type than expected for a datapoint) the component handler will not able to send/receive the data to/from the MCU.
+
+Unlike the original Esphome tuya component, I chose to follow the naming that Tuya uses. Therefore these are the types you can specify:
+- `raw` - raw data, in lambdas represented as `std::vector<uint8_t>`
+- `string` - an utf8-encoded text, in lambdas represented as `std::string`
+- `value` - a 32-bit unsigned number, in lambdas represented as `uint32_t`
+- `enum` - an 8-bit unsigned number, in lambdas represented as `uint8_t`
+- `bool` - a boolean value, in lambdas represented as `bool`
+- `bitmap` - an 8- or 16- or 32-bit value, in lambdas represented as `uint32_t`. The actual number of bits that the MCU sends may vary (eg. it does not send more than 8 if the rest of bits is 0).
+
+There are also special values that you can use as type in some cases:
+- `any` - will match any datapoint type. Can only be used with on_datapoint_update (see [here](#manual-parsing-of-datapoint-data))
+- `detect` - we will use the type that the MCU reported for the datapoint. See [here](#autodetection-of-datapoint-type).
+
+## Specifing a datapoint
+Most of the time when you specify a datapoint you can do it in two forms: a short form and a long form.
+
+Short form only requires to specify the number, while the type is automatically set to a default type, which depends on the context - see the [detailed description of components](#components).
+Example of short form
+```yaml
+switch:
+  platform: uyat
+  datapoint: 5
+```
+
+Long form allows specifying also the `datapoint_type`.
+Example of long form:
+```yaml
+switch:
+  platform: uyat
+  datapoint:
+    number: 10
+    datapoint_type: enum
+```
+
+In general I recommend to specify the type, as the default type does is not always the correct one.
+
+## Autodetection of datapoint type
+In some cases it is allowed to specify `datapoint_type: detect`. While this sounds convenient, I would advise *not to use it* with components that send a datapoint value to the MCU (most of them do). Here's why: sending datapoint value to the MCU can only be done if the type is known. So if the MCU does not report a specific datapoint first (some devices do that), then you will never be able to set it.
+This means you can safely use it with sensor and binary_sensor, or when you're sure your device always reports the datapoint value first.
+
+# Components
 ## Binary Sensor
+When creating a binary sensor entity (ie. a true/false value) you need to specify:
+- `datapoint` (required) - either the short or long form. Allowed types: `detect`, `bool`, `value`, `enum`, `bitmap`. The default type is `bool`.
+- `bit_number` (optional, 1-32) - the bit to check in the value. Note that the number is 1-based.
+- all other options from the [Esphome Binary Sensor](https://esphome.io/components/binary_sensor/)
+
+If `bit_number` is specified, the sensor will be evaluated to `True` if the bit is set in the received value.
+If `bit_number` is not specified, the sensor will be evaluated to `True` if the value is non-zero.
+
+Example usage:
+```yaml
+binary_sensor:
+  - platform: "uyat"
+    name: "Side Brush Problem"
+    datapoint:
+      number: 11
+      datapoint_type: bitmap
+    bit_number: 1
+  - platform: "uyat"
+    name: "Mid Brush Problem"
+    datapoint:
+      number: 11
+      datapoint_type: bitmap
+    bit_number: 2
+```
+
+```yaml
+binary_sensor:
+  - platform: "uyat"
+    datapoint:
+      number: 9
+    bit_number: 1
+    name: "Short Circuit"
+    icon: "mdi:alert-octagon"
+    entity_category: diagnostic
+    filters:
+      - delayed_off: 1s
+```
+
 ## Button
+When creating a button entity, you need to specify:
+- `datapoint` (required) - must be in its long form with payload. Allowed types: `bool`, `value`, `enum`. The default type is `bool`.
+- all other options from the [Esphome Button](https://esphome.io/components/button/)
+
+Examples:
+```yaml
+  - platform: "uyat"
+    datapoint:
+      number: 12
+      datapoint_type: bool
+      trigger_payload: True
+    name: "Energy Reset"
+    icon: "mdi:recycle"
+    entity_category: config
+```
+
 ## Number
+When creating a number entity, you need to specify:
+- `datapoint` (required) - either the short or long form. Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+- `min_value` (required) - the minimum value of the entity
+- `min_value` (required) - the maximum value of the entity
+- `step` (required) - the granularity
+- `multiplier` (optional, exclusive with `multiplier`) - the value received from the MCU will be multiplied by this number and the result will be set as the entity state. The value set to the MCU will be divided by this number before sending.
+- `scale` (optional, exclusive with `multiplier`) - same as `multiplier`, but sets the multiplier to 10^scale
+- `offset` (optional) - the value received from the MCU will be be increased by `offset`. The value set to the MCU will be decrease by `offset`.
+- all other options from the [Esphome Number](https://esphome.io/components/number/)
+
 ## Select
 ## Sensor
 ## Switch
@@ -169,9 +279,23 @@ button:
 ## Fan
 ## Light
 
+
 # Shoulders of the giants
 Even though I don't like the original tuya component, I still think the Esphome Team did a great job with it. Without it I would never be able to write Uyat and I have learnt a great deal just from studying it.
 Thank you Esphome Team!
+
+# Still to do
+Not necessarily in this order.
+- The low-power protocol (merge lpuyat)
+- The lock protocol
+- The breaker alarm triggers
+- Code quality: use FixedVector, StringRef, stop using get_object_id
+- Remove code bloat
+- Persistently storing & restoring settable values
+
+# Contributing
+As you can see above there's still plenty to do.
+If you want to help or know how to improve this component, you are more than welcome to create a pull request or drop me a line on [Esphome Discord Server](https://discord.com/invite/n9sdw7pnsn).
 
 # License
 Since this component is a rewrite, I think it's only fair to keep the Esphome license.

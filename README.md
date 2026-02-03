@@ -28,7 +28,7 @@ This readme assumes the user already knows how to deal with TuyaMCU devices, wha
 - Valve (TBD)
 - Water Heater (TBD)
 
-# Usage
+# Component configuration
 To use Uyat, first you need to make sure it is added as external component:
 
 ```yaml
@@ -46,6 +46,18 @@ uart:
   tx_pin: TX
 
 uyat:
+```
+
+or
+
+```yaml
+uart:
+  id: uyat_uart
+  rx_pin: RX2
+  tx_pin: TX2
+
+uyat:
+  uart_id: uyat_uart
 ```
 
 The above should make the Uyat component activate on startup and begin communication with TuyaMCU - this includes sending heartbeats (when needed) and seamlessly answering to various MCU requests required by the protocols (pairing, time, wifi status, etc.).
@@ -87,34 +99,75 @@ Each of the above entries is optional, each creates a text entity.
 - `unhandled_datapoints` - the list of datapoint ids (in hex) that were reported by the MCU, which were not handled. If this is not empty then you probably have not setup all the functionality yet.
 - `pairing mode` - this shows the current pairing mode as seen by the MCU. The possible values are: `ap`, `smartconfig` and `none`. Some devices will not send their datapoints unless pairing is complete and the device is connected to the cloud.
 
-## Manual parsing of raw datapoint data
+## Manual parsing of datapoint data
 If you find that none of the [platforms](#supported-esphome-platforms) support your specific datapoints, there's an option to do the parsing manually in a lambda - in the same way it was done in the original esphome tuya implementation, eg:
 
 ```yaml
 uyat:
   on_datapoint_update:
     - datapoint: 6
-      datapoint_type: uyat_raw
+      datapoint_type: raw
       then:
         - lambda: |-
             id(voltage_sensor).publish_state((x[0] << 8 | x[1]) * 0.1);
             id(current_sensor).publish_state((x[3] << 8 | x[4]) * 0.001);
             id(power_sensor).publish_state((x[6] << 8 | x[7]));
 ```
-The `x` passed to lambda contains the payload of the datapoint as sent by the MCU.
+The `x` passed to lambda contains the payload of the datapoint as sent by the MCU. The type of x depends on datapoint_type.
+You can also pass `datapoint_type: any`, in which case x carries the whole UyatDatapoint structure. See the source code on how to use it.
 
-# Binary Sensor
-# Button
-# Number
-# Select
-# Sensor
-# Switch
-# Text Sensor
+## Reporting AP name
+For some unknown reason, [the MCU may ask us](https://developer.tuya.com/en/docs/iot/tuya-cloud-universal-serial-port-access-protocol?id=K9hhi0xxtn9cb#subtitle-81-Get%20information%20about%20Wi-Fi%20module) about the base SSID we use in AP mode. I suspect this might be a way for the MCU to detect "re-branded" devices and modify its behavior depending on the brand.
+By default, this implementation returns the string `smartlife`, but you can override this by using `report_ap_name`, eg.:
 
-# Climate
-# Cover
-# Fan
-# Light
+```yaml
+uyat:
+  report_ap_name: "SL-Vactidy"
+```
+
+# Automations
+## Factory reset
+The standard protocol allows sending the ["factory reset" command](https://developer.tuya.com/en/docs/iot/tuya-cloud-universal-serial-port-access-protocol?id=K9hhi0xxtn9cb#subtitle-80-(Optional)%20The%20reset%20status) to the MCU.
+This command can be triggered from yaml by using the `factory_reset` automation.
+The automation accepts one parameter:
+- `type` (enum, optional) - the type of reset to send to the MCU. Possible values: `HW`, `APP`, `APP_WIPE`. If ommited, then `HW` is sent.
+
+Example yaml:
+```yaml
+button:
+  - platform: template
+    name: "Factory Reset HW"
+    on_press:
+      then:
+        - uyat.factory_reset:
+            type: HW
+  - platform: template
+    name: "Factory Reset APP"
+    on_press:
+      then:
+        - uyat.factory_reset:
+            type: APP
+  - platform: template
+    name: "Factory Reset APP_WIPE"
+    on_press:
+      then:
+        - uyat.factory_reset:
+            type: APP_WIPE
+```
+
+# Platforms
+## Binary Sensor
+## Button
+## Number
+## Select
+## Sensor
+## Switch
+## Text Sensor
+
+## Climate
+## Cover
+## Fan
+## Light
 
 # Shoulders of the giants
 Even though I don't like the original tuya component, I still think the Esphome Team did a great job with it. Without it I would never be able to write Uyat and I have learnt a great deal just from studying it.

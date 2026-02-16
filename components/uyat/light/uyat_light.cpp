@@ -188,7 +188,7 @@ void UyatLight::write_state(light::LightState *state) {
 
 void UyatLight::on_dimmer_value(const float value_percent)
 {
-  ESP_LOGV(UyatLight::TAG, "Dimmer of %s reported brightness: %.4f", this->get_object_id().c_str(), value_percent);
+  ESP_LOGV(UyatLight::TAG, "Dimmer of %s reported brightness: %.4f", this->get_name().c_str(), value_percent);
   if (this->state_->current_values != this->state_->remote_values) {
     ESP_LOGD(UyatLight::TAG, "Light is transitioning, datapoint change ignored");
     return;
@@ -201,7 +201,7 @@ void UyatLight::on_dimmer_value(const float value_percent)
 
 void UyatLight::on_switch_value(const bool value)
 {
-  ESP_LOGV(UyatLight::TAG, "MCU reported switch %s is: %s", this->get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatLight::TAG, "MCU reported switch %s is: %s", this->get_name().c_str(), ONOFF(value));
   if (this->state_->current_values != this->state_->remote_values) {
     ESP_LOGD(UyatLight::TAG, "Light is transitioning, datapoint change ignored");
     return;
@@ -214,7 +214,7 @@ void UyatLight::on_switch_value(const bool value)
 
 void UyatLight::on_color_value(const DpColor::Value& value)
 {
-  ESP_LOGV(UyatLight::TAG, "MCU reported color %s is: %.2f, %.2f, %.2f", this->get_object_id().c_str(), value.r, value.g, value.b);
+  ESP_LOGV(UyatLight::TAG, "MCU reported color %s is: %.2f, %.2f, %.2f", this->get_name().c_str(), value.r, value.g, value.b);
 
   if (this->state_->current_values != this->state_->remote_values) {
     ESP_LOGD(UyatLight::TAG, "Light is transitioning, datapoint change ignored");
@@ -233,7 +233,7 @@ void UyatLight::on_color_value(const DpColor::Value& value)
 
 void UyatLight::on_white_temperature_value(const float value_percent)
 {
-  ESP_LOGV(UyatLight::TAG, "Dimmer of %s reported white temperature: %.4f", this->get_object_id().c_str(), value_percent);
+  ESP_LOGV(UyatLight::TAG, "Dimmer of %s reported white temperature: %.4f", this->get_name().c_str(), value_percent);
   if (this->state_->current_values != this->state_->remote_values) {
     ESP_LOGD(UyatLight::TAG, "Light is transitioning, datapoint change ignored");
     return;

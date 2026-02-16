@@ -22,10 +22,10 @@ void UyatSelect::control(size_t index) {
   if (this->optimistic_)
     this->publish_state(index);
 
-  ESP_LOGV(UyatSelect::TAG, "Setting %s to %zu (%s)", get_object_id().c_str(), index, this->option_at(index));
+  ESP_LOGV(UyatSelect::TAG, "Setting %s to %zu (%s)", get_name().c_str(), index, this->option_at(index));
 
   if (index >= this->mappings_.size()) {
-    ESP_LOGW(UyatSelect::TAG, "Index %zu out of range for %s", index, get_object_id().c_str());
+    ESP_LOGW(UyatSelect::TAG, "Index %zu out of range for %s", index, get_name().c_str());
     return;
   }
   uint32_t mapping = this->mappings_.at(index);
@@ -34,7 +34,7 @@ void UyatSelect::control(size_t index) {
 
 void UyatSelect::on_value(const float value)
 {
-  ESP_LOGV(UyatSelect::TAG, "MCU reported %s is: %.0f", get_object_id().c_str(), value);
+  ESP_LOGV(UyatSelect::TAG, "MCU reported %s is: %.0f", get_name().c_str(), value);
   auto translated = translate(static_cast<uint32_t>(value));
   if (translated)
   {
@@ -42,13 +42,13 @@ void UyatSelect::on_value(const float value)
   }
   else
   {
-    ESP_LOGW(UyatSelect::TAG, "Received unmapped value %.0f for %s", value, get_object_id().c_str());
+    ESP_LOGW(UyatSelect::TAG, "Received unmapped value %.0f for %s", value, get_name().c_str());
   }
 }
 
 void UyatSelect::dump_config() {
   LOG_SELECT("", "Uyat Select", this);
-  ESP_LOGCONFIG(UyatSelect::TAG, "  Select %s is %s", get_object_id().c_str(), this->dp_number_.get_config().to_string().c_str());
+  ESP_LOGCONFIG(UyatSelect::TAG, "  Select %s is %s", get_name().c_str(), this->dp_number_.get_config().to_string().c_str());
   ESP_LOGCONFIG(UyatSelect::TAG, "  Options are:");
   const auto &options = this->traits.get_options();
   for (size_t i = 0; i < this->mappings_.size(); i++) {

@@ -44,7 +44,7 @@ supports_cool_(config.supports_cool)
 
 void UyatClimate::on_switch_value(const bool value)
 {
-  ESP_LOGV(UyatClimate::TAG, "Switch of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatClimate::TAG, "Switch of %s is now %s", this->get_name().c_str(), ONOFF(value));
   this->mode = climate::CLIMATE_MODE_OFF;
 
   if (value)
@@ -64,7 +64,7 @@ void UyatClimate::on_switch_value(const bool value)
 
 void UyatClimate::on_sleep_value(const bool value)
 {
-  ESP_LOGV(UyatClimate::TAG, "Sleep of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatClimate::TAG, "Sleep of %s is now %s", this->get_name().c_str(), ONOFF(value));
   this->preset = this->presets_.get_active_preset();
   this->select_target_temperature_to_report_();
   this->publish_state();
@@ -72,7 +72,7 @@ void UyatClimate::on_sleep_value(const bool value)
 
 void UyatClimate::on_eco_value(const bool value)
 {
-  ESP_LOGV(UyatClimate::TAG, "Eco of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatClimate::TAG, "Eco of %s is now %s", this->get_name().c_str(), ONOFF(value));
   this->preset = this->presets_.get_active_preset();
   this->select_target_temperature_to_report_();
   this->publish_state();
@@ -80,7 +80,7 @@ void UyatClimate::on_eco_value(const bool value)
 
 void UyatClimate::on_boost_value(const bool value)
 {
-  ESP_LOGV(UyatClimate::TAG, "Boost of %s is now %s", this->get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatClimate::TAG, "Boost of %s is now %s", this->get_name().c_str(), ONOFF(value));
   this->preset = this->presets_.get_active_preset();
   this->select_target_temperature_to_report_();
   this->publish_state();
@@ -88,7 +88,7 @@ void UyatClimate::on_boost_value(const bool value)
 
 void UyatClimate::on_target_temperature_value(const float value)
 {
-  ESP_LOGV(UyatClimate::TAG, "Target temperature of %s reported: %.1f", this->get_object_id().c_str(), value);
+  ESP_LOGV(UyatClimate::TAG, "Target temperature of %s reported: %.1f", this->get_name().c_str(), value);
 
   this->select_target_temperature_to_report_();
   this->compute_state_();
@@ -99,7 +99,7 @@ void UyatClimate::on_current_temperature_value(const float value)
 {
   this->current_temperature = *(this->temperatures_->get_current_temperature());
 
-  ESP_LOGV(UyatClimate::TAG, "Current Temperature of %s is now %.1f", this->get_object_id().c_str(), this->current_temperature);
+  ESP_LOGV(UyatClimate::TAG, "Current Temperature of %s is now %.1f", this->get_name().c_str(), this->current_temperature);
   this->compute_state_();
   this->publish_state();
 }

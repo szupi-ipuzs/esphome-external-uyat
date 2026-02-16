@@ -18,12 +18,12 @@ void UyatSensor::setup() {
 
 void UyatSensor::dump_config() {
   LOG_SENSOR("", "Uyat Sensor", this);
-  ESP_LOGCONFIG(UyatSensor::TAG, "  Sensor %s is %s", get_object_id().c_str(), this->dp_number_.get_config().to_string().c_str());
+  ESP_LOGCONFIG(UyatSensor::TAG, "  Sensor %s is %s", get_name().c_str(), this->dp_number_.get_config().to_string().c_str());
 }
 
 void UyatSensor::on_value(const float value)
 {
-  ESP_LOGV(UyatSensor::TAG, "MCU reported %s is: %.4f", get_object_id().c_str(), value);
+  ESP_LOGV(UyatSensor::TAG, "MCU reported %s is: %.4f", get_name().c_str(), value);
   this->publish_state(value);
 }
 

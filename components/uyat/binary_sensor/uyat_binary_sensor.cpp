@@ -21,12 +21,12 @@ void UyatBinarySensor::setup() {
 
 void UyatBinarySensor::dump_config() {
   ESP_LOGCONFIG(UyatBinarySensor::TAG, "Uyat Binary Sensor:");
-  ESP_LOGCONFIG(UyatBinarySensor::TAG, "  Binary Sensor %s is %s", get_object_id().c_str(), this->dp_binary_sensor_.get_config().to_string().c_str());
+  ESP_LOGCONFIG(UyatBinarySensor::TAG, "  Binary Sensor %s is %s", get_name().c_str(), this->dp_binary_sensor_.get_config().to_string().c_str());
 }
 
 void UyatBinarySensor::on_value(const bool value)
 {
-  ESP_LOGV(UyatBinarySensor::TAG, "MCU reported %s is: %s", get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatBinarySensor::TAG, "MCU reported %s is: %s", get_name().c_str(), ONOFF(value));
   this->publish_state(value);
 }
 

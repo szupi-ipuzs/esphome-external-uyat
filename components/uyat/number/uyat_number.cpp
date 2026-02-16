@@ -18,19 +18,19 @@ void UyatNumber::setup() {
 }
 
 void UyatNumber::control(float value) {
-  ESP_LOGV(UyatNumber::TAG, "Setting number %s to %f", get_object_id().c_str(), value);
+  ESP_LOGV(UyatNumber::TAG, "Setting number %s to %f", get_name().c_str(), value);
   this->dp_number_.set_value(value);
   this->publish_state(value);
 }
 
 void UyatNumber::dump_config() {
   LOG_NUMBER("", "Uyat Number", this);
-  ESP_LOGCONFIG(UyatNumber::TAG, "  Number %s is %s", get_object_id().c_str(), this->dp_number_.get_config().to_string().c_str());
+  ESP_LOGCONFIG(UyatNumber::TAG, "  Number %s is %s", get_name().c_str(), this->dp_number_.get_config().to_string().c_str());
 }
 
 void UyatNumber::on_value(const float value)
 {
-  ESP_LOGV(UyatNumber::TAG, "MCU reported %s is: %.4f", get_object_id().c_str(), value);
+  ESP_LOGV(UyatNumber::TAG, "MCU reported %s is: %.4f", get_name().c_str(), value);
   this->publish_state(value);
 }
 

@@ -19,19 +19,19 @@ void UyatSwitch::setup() {
 }
 
 void UyatSwitch::write_state(bool state) {
-  ESP_LOGV(UyatSwitch::TAG, "Setting %s to %s", get_object_id().c_str(), ONOFF(state));
+  ESP_LOGV(UyatSwitch::TAG, "Setting %s to %s", get_name().c_str(), ONOFF(state));
   this->dp_switch_.set_value(state);
   this->publish_state(state);
 }
 
 void UyatSwitch::dump_config() {
   LOG_SWITCH("", "Uyat Switch", this);
-  ESP_LOGCONFIG(UyatSwitch::TAG, "  Switch %s is %s", get_object_id().c_str(), this->dp_switch_.get_config().to_string().c_str());
+  ESP_LOGCONFIG(UyatSwitch::TAG, "  Switch %s is %s", get_name().c_str(), this->dp_switch_.get_config().to_string().c_str());
 }
 
 void UyatSwitch::on_value(const bool value)
 {
-  ESP_LOGV(UyatSwitch::TAG, "MCU reported %s is: %s", get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatSwitch::TAG, "MCU reported %s is: %s", get_name().c_str(), ONOFF(value));
   this->publish_state(value);
 }
 

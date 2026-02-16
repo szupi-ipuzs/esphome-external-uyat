@@ -95,7 +95,7 @@ void UyatFan::control(const fan::FanCall &call) {
 
 void UyatFan::on_switch_value(const bool value)
 {
-  ESP_LOGV(UyatFan::TAG, "MCU reported switch %s is: %s", get_object_id().c_str(), ONOFF(value));
+  ESP_LOGV(UyatFan::TAG, "MCU reported switch %s is: %s", get_name().c_str(), ONOFF(value));
   this->state = value;
   this->publish_state();
 }

@@ -22,7 +22,7 @@ void UyatTextSensorMapped::setup() {
 
 void UyatTextSensorMapped::dump_config() {
   ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "Uyat Mapped Text Sensor:");
-  ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "  Text Sensor %s is %s", get_object_id().c_str(), this->dp_number_.get_config().to_string().c_str());
+  ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "  Text Sensor %s is %s", get_name().c_str(), this->dp_number_.get_config().to_string().c_str());
   ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "  Options are:");
   for (const auto& item: this->mapping_) {
     ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "    %u: %s", item.first, item.second.c_str());
@@ -31,7 +31,7 @@ void UyatTextSensorMapped::dump_config() {
 
 void UyatTextSensorMapped::on_value(const float value)
 {
-  ESP_LOGV(UyatTextSensorMapped::TAG, "MCU reported %s is: %.0f", get_object_id().c_str(), value);
+  ESP_LOGV(UyatTextSensorMapped::TAG, "MCU reported %s is: %.0f", get_name().c_str(), value);
   const auto translated = translate(static_cast<uint32_t>(value));
   if (!translated.empty())
   {
@@ -39,7 +39,7 @@ void UyatTextSensorMapped::on_value(const float value)
   }
   else
   {
-    ESP_LOGW(UyatTextSensorMapped::TAG, "Received unmapped value %.0f for %s", value, get_object_id().c_str());
+    ESP_LOGW(UyatTextSensorMapped::TAG, "Received unmapped value %.0f for %s", value, get_name().c_str());
   }
 }
 

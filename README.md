@@ -625,7 +625,7 @@ Not necessarily in this order.
 - The low-power protocol (merge lpuyat)
 - The lock protocol
 - The breaker alarm triggers
-- Code quality: use FixedVector, StringRef, stop using get_object_id
+- Code quality: use FixedVector, StringRef
 - Remove code bloat
 - Persistently storing & restoring settable values
 

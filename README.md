@@ -759,6 +759,35 @@ fan:
 
 ## Light
 
+### Monochromatic Dimmer
+Different subsections are required depending on which datapoints are available for your light
+- `dimmmer` (required) - the section containing settings for the light dimming part of the dimmer entity:
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+  * `min_value` (optional) - minimal numerical value the dimmer can be set to. The default is `0`.
+  * `max_value` (optional) - maximum numerical value the  dimmer can be set to. The default is `255`.
+  * `inverted` (optional) - should the light intensity value be inverted where highest number is the dimmest possible value. The default is `False`.
+  * `min_value_datapoint` (optional) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+- `switch` (optional) - the section containing the settings for the binary control of the dimmer (ON/OFF):
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+  * `inverted` (optional) - should the behavior of this switch be inverted (ie. switch off if the datapoint evaluates to `True`). The default is `False`.
+
+Example yaml:
+```yaml
+light:
+  - platform: uyat
+    name: "Dimmer"
+    id: dimmer
+    dimmer:
+      datapoint: 2
+      min_value: 1
+      max_value: 1000
+      inverted: false
+      min_value_datapoint: 2
+    switch:
+      datapoint: 1
+      inverted: false
+```
+
 
 # Shoulders of the giant
 Even though I don't like the original tuya component, I still think the Esphome Team did a great job with it. I would never be able to write Uyat without it and I have learnt a great deal just from studying it.

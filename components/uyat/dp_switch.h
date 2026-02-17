@@ -118,7 +118,7 @@ struct DpSwitch
       else
       if (this->config_.matching_dp.matches(UyatDatapointType::ENUM))
       {
-         handler_->set_datapoint_value(UyatDatapoint{this->config_.matching_dp.number, EnumDatapointValue{invert_if_needed(value)? 0x01 : 0x00}}, force);
+         handler_->set_datapoint_value(UyatDatapoint{this->config_.matching_dp.number, EnumDatapointValue{static_cast<decltype(EnumDatapointValue::value)>(invert_if_needed(value)? 0x01 : 0x00)}}, force);
       }
    }
 

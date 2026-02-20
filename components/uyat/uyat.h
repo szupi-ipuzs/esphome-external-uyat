@@ -185,33 +185,6 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void update_pairing_mode_sensor_();
 #endif
 
-#ifndef UYAT_REPORT_AP_NAME
-#define UYAT_REPORT_AP_NAME "smartlife"
-#endif
-  static constexpr const char* report_ap_name_ = UYAT_REPORT_AP_NAME;
-
-  // Module information response format constants
-  static constexpr const char JSON_OPEN_BRACE[] = "{";
-  static constexpr const char JSON_CLOSE_BRACE[] = "}";
-  static constexpr const char JSON_COMMA[] = ",";
-  static constexpr const char JSON_AP_PREFIX[] = "\"ap:\":\"";
-  static constexpr const char JSON_AP_SUFFIX[] = "\"";
-  static constexpr const char JSON_CC_FIELD[] = "\"cc:\":\"0\"";
-  static constexpr const char JSON_SN_FIELD[] = "\"sn:\":\"1234567890\"";
-  
-  // Max module info buffer size computed from constants above
-  // {"ap":"<name>","cc":"0","sn":"1234567890"} + null terminator
-  static constexpr size_t MODULE_INFO_MAX_SIZE = 
-      sizeof(JSON_OPEN_BRACE) - 1 +
-      sizeof(JSON_AP_PREFIX) - 1 +
-      sizeof(UYAT_REPORT_AP_NAME) - 1 +
-      sizeof(JSON_AP_SUFFIX) - 1 +
-      sizeof(JSON_COMMA) - 1 +
-      sizeof(JSON_CC_FIELD) - 1 +
-      sizeof(JSON_COMMA) - 1 +
-      sizeof(JSON_SN_FIELD) - 1 +
-      sizeof(JSON_CLOSE_BRACE) - 1 +
-      1;  // null terminator
 #ifdef USE_TIME
   void send_local_time_();
   time::RealTimeClock *time_id_{nullptr};
@@ -237,18 +210,60 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   UyatNetworkStatus wifi_status_{UyatNetworkStatus::WIFI_CONFIGURED};
   optional<bool> requested_wifi_config_is_ap_{};
   CallbackManager<void()> initialized_callback_{};
-
-#ifdef UYAT_DIAGNOSTICS_ENABLED
+  static constexpr size_t NULL_TERMINATOR_SIZE = sizeof('\0');
+  static constexpr size_t LOG_SCRATCH_HEX_PRETTY_SIZE = 128;
+  static constexpr size_t LOG_SCRATCH_BUF_ACTUAL_SIZE = format_hex_pretty_size(LOG_SCRATCH_HEX_PRETTY_SIZE) + NULL_TERMINATOR_SIZE;
+  inline char* format_hex_into_log_scratch_(const uint8_t* data, size_t length) {
+    return format_hex_pretty_to(this->log_scratch_buf_, this->LOG_SCRATCH_BUF_ACTUAL_SIZE,
+                                data, std::min(length, this->LOG_SCRATCH_HEX_PRETTY_SIZE));
+  }
+  
+  #ifdef UYAT_DIAGNOSTICS_ENABLED
   uint64_t num_garbage_bytes_{0};
   std::vector<uint8_t> unknown_commands_set_;
   std::vector<uint8_t> unknown_extended_commands_set_;
   std::vector<uint8_t> unhandled_datapoints_set_;
-#endif
-};
+  #endif
+    
+ private:
+  inline uint8_t byte_at_(const std::deque<uint8_t> &buffer, size_t offset, size_t idx) const {
+    return buffer[offset + idx];
+  }
+  
+  #ifndef UYAT_REPORT_AP_NAME
+  #define UYAT_REPORT_AP_NAME "smartlife"
+  #endif
+  static constexpr const char* report_ap_name_ = UYAT_REPORT_AP_NAME;
+  
+  // Module information response format constants
+  static constexpr const char JSON_OPEN_BRACE[] = "{";
+  static constexpr const char JSON_CLOSE_BRACE[] = "}";
+  static constexpr const char JSON_COMMA[] = ",";
+  static constexpr const char JSON_AP_PREFIX[] = "\"ap:\":\"";
+  static constexpr const char JSON_AP_SUFFIX[] = "\"";
+  static constexpr const char JSON_CC_FIELD[] = "\"cc:\":\"0\"";
+  static constexpr const char JSON_SN_FIELD[] = "\"sn:\":\"1234567890\"";
+  
+  // Max module info buffer size computed from constants above
+  // {"ap":"<name>","cc":"0","sn":"1234567890"}
+  static constexpr size_t MODULE_INFO_MAX_SIZE = 
+  sizeof(JSON_OPEN_BRACE) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_AP_PREFIX) - NULL_TERMINATOR_SIZE +
+  sizeof(UYAT_REPORT_AP_NAME) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_AP_SUFFIX) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_COMMA) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_CC_FIELD) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_COMMA) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_SN_FIELD) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_CLOSE_BRACE) - NULL_TERMINATOR_SIZE +
+  NULL_TERMINATOR_SIZE;
 
-template<typename... Ts> class FactoryResetAction : public Action<Ts...> {
- public:
-  FactoryResetAction(Uyat *uyat) : uyat_(uyat) {}
+  char log_scratch_buf_[LOG_SCRATCH_BUF_ACTUAL_SIZE];  // Scratchpad buffer for logger string construction
+};
+  
+  template<typename... Ts> class FactoryResetAction : public Action<Ts...> {
+    public:
+    FactoryResetAction(Uyat *uyat) : uyat_(uyat) {}
   TEMPLATABLE_VALUE(FactoryResetType, reset_type);
 
   void play(const Ts &...x) override {

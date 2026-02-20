@@ -15,15 +15,14 @@ static const char *const TAG = "uyat";
 static const int COMMAND_DELAY = 10;
 static const int RECEIVE_TIMEOUT = 300;
 static const int MAX_RETRIES = 5;
-// Max bytes to log for datapoint values (larger values are truncated)
-static constexpr size_t MAX_DATAPOINT_LOG_BYTES = 16;
-// Max bytes to log for command payloads (larger values are truncated)
-static constexpr size_t MAX_COMMAND_LOG_BYTES = 32;
 
 static const uint8_t NET_STATUS_WIFI_CONNECTED = 0x03;
 static const uint8_t NET_STATUS_CLOUD_CONNECTED = 0x04;
 static const uint8_t FAKE_WIFI_RSSI = 100;
 static const uint64_t UART_MAX_POLL_TIME_MS = 50;
+
+// Datapoint command header size (id + type + length_hi + length_lo)
+static const size_t FRAME_CMD_HDR_SIZE = 4u;
 
 #ifdef UYAT_DIAGNOSTICS_ENABLED
 static void add_unique_to_vector(std::vector<uint8_t> &vec, const uint8_t value) {
@@ -60,19 +59,22 @@ void Uyat::setup() {
 
       if (this->unknown_commands_text_sensor_)
       {
-        const auto cmd_ids = format_hex_pretty(this->unknown_commands_set_, ' ', false);
+        const auto cmd_ids = format_hex_into_log_scratch_(this->unknown_commands_set_.data(),
+                                                           this->unknown_commands_set_.size());
         this->unknown_commands_text_sensor_->publish_state(cmd_ids);
       }
 
       if (this->unknown_extended_commands_text_sensor_)
       {
-        const auto cmd_ids = format_hex_pretty(this->unknown_extended_commands_set_, ' ', false);
+        const auto cmd_ids = format_hex_into_log_scratch_(this->unknown_extended_commands_set_.data(),
+                                                           this->unknown_extended_commands_set_.size());
         this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids);
       }
 
       if (this->unhandled_datapoints_text_sensor_)
       {
-        const auto dp_ids = format_hex_pretty(this->unhandled_datapoints_set_, ' ', false);
+        const auto dp_ids = format_hex_into_log_scratch_(this->unhandled_datapoints_set_.data(),
+                                                          this->unhandled_datapoints_set_.size());
         this->unhandled_datapoints_text_sensor_->publish_state(dp_ids);
       }
 
@@ -179,14 +181,8 @@ std::size_t Uyat::validate_message_() {
   // valid message
   const size_t data_offset = 6u;
   const size_t data_len = checksum_offset - data_offset;
-  const size_t log_len = std::min(data_len, MAX_DATAPOINT_LOG_BYTES);
-  std::array<uint8_t, MAX_DATAPOINT_LOG_BYTES> log_data{};
-  for (size_t i = 0; i < log_len; ++i) {
-    log_data[i] = this->rx_message_.at(data_offset + i);
-  }
-  char hex_buf[format_hex_pretty_size(MAX_DATAPOINT_LOG_BYTES)];
-  ESP_LOGV(TAG, "Received Uyat: CMD=0x%02X VERSION=%u DATA=[%s] INIT_STATE=%u",
-           command, version, format_hex_pretty_to(hex_buf, log_data.data(), log_len),
+  ESP_LOGV(TAG, "Received Uyat: CMD=0x%02X VERSION=%u LEN=%zu INIT_STATE=%u",
+           command, version, data_len,
            static_cast<uint8_t>(this->init_state_));
   this->handle_command_(command, version, this->rx_message_, data_offset, data_len);
 
@@ -223,7 +219,6 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
                            const std::deque<uint8_t> &buffer,
                            size_t offset, size_t len) {
   UyatCommandType command_type = (UyatCommandType)command;
-  auto byte_at = [&](size_t idx) -> uint8_t { return buffer[offset + idx]; };
 
   if (this->expected_response_.has_value() &&
       this->expected_response_ == command_type) {
@@ -234,9 +229,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
 
   switch (command_type) {
   case UyatCommandType::HEARTBEAT:
-    ESP_LOGV(TAG, "MCU Heartbeat (0x%02X)", byte_at(0));
+    ESP_LOGV(TAG, "MCU Heartbeat (0x%02X)", this->byte_at_(buffer, offset, 0));
     this->protocol_version_ = version;
-    if (byte_at(0) == 0) {
+    if (this->byte_at_(buffer, offset, 0) == 0) {
       ESP_LOGI(TAG, "MCU restarted");
     }
     schedule_heartbeat_(false);
@@ -249,7 +244,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     // check it is a valid string made up of printable characters
     bool valid = true;
     for (size_t i = 0; i < len; i++) {
-      if (!std::isprint(byte_at(i))) {
+      if (!std::isprint(this->byte_at_(buffer, offset, i))) {
         valid = false;
         break;
       }
@@ -258,7 +253,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       bool same = (len == this->product_.size());
       if (same) {
         for (size_t i = 0; i < len; ++i) {
-          if (byte_at(i) != static_cast<uint8_t>(this->product_[i])) {
+          if (this->byte_at_(buffer, offset, i) != static_cast<uint8_t>(this->product_[i])) {
             same = false;
             break;
           }
@@ -268,7 +263,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
         std::string product_candidate;
         product_candidate.reserve(len);
         for (size_t i = 0; i < len; ++i) {
-          product_candidate.push_back(static_cast<char>(byte_at(i)));
+          product_candidate.push_back(static_cast<char>(this->byte_at_(buffer, offset, i)));
         }
         ESP_LOGD(TAG, "Product info changed from '%s' to '%s'", this->product_.c_str(), product_candidate.c_str());
         this->product_ = product_candidate;
@@ -291,8 +286,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
   }
   case UyatCommandType::CONF_QUERY: {
     if (len >= 2) {
-      this->status_pin_reported_ = byte_at(0);
-      this->reset_pin_reported_ = byte_at(1);
+      this->status_pin_reported_ = this->byte_at_(buffer, offset, 0);
+      this->reset_pin_reported_ = this->byte_at_(buffer, offset, 1);
     }
     if (this->init_state_ == UyatInitState::INIT_CONF) {
       // If mcu returned status gpio, then we can omit sending wifi state
@@ -385,7 +380,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       ESP_LOGI(TAG, "WIFI_SELECT");
       if (len > 0)
       {
-        this->requested_wifi_config_is_ap_ = (byte_at(0) == 0x01);
+        this->requested_wifi_config_is_ap_ = (this->byte_at_(buffer, offset, 0) == 0x01);
       }
       else
       {
@@ -475,13 +470,12 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     this->send_command_(
         UyatCommand{.cmd = UyatCommandType::GET_MAC_ADDRESS,
                     .payload = mac});
-    char hex_buf[format_hex_pretty_size(mac_len)];
     ESP_LOGV(TAG, "MAC address requested, reported as %s",
-              format_hex_pretty_to(hex_buf, mac));
+              format_hex_into_log_scratch_(mac.data(), mac.size()));
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
-    uint8_t subcommand = byte_at(0);
+    uint8_t subcommand = this->byte_at_(buffer, offset, 0);
     switch ((UyatExtendedServicesCommandType)subcommand) {
     case UyatExtendedServicesCommandType::RESET_NOTIFICATION: {
       this->send_command_(UyatCommand{
@@ -635,15 +629,9 @@ void Uyat::send_raw_command_(const UyatCommand &command) {
     break;
   }
 
-  const size_t log_len = std::min(command.payload.size(), MAX_COMMAND_LOG_BYTES);
-  std::array<uint8_t, MAX_COMMAND_LOG_BYTES> log_data{};
-  for (size_t i = 0; i < log_len; ++i) {
-    log_data[i] = command.payload[i];
-  }
-  char hex_buf[format_hex_pretty_size(MAX_COMMAND_LOG_BYTES)];
   ESP_LOGV(TAG, "Sending Uyat: CMD=0x%02X VERSION=%u DATA=[%s] INIT_STATE=%u",
            static_cast<uint8_t>(command.cmd), version,
-           format_hex_pretty_to(hex_buf, log_data.data(), log_len),
+           format_hex_into_log_scratch_(command.payload.data(), command.payload.size()),
            static_cast<uint8_t>(this->init_state_));
 
   this->write_array(
@@ -773,7 +761,7 @@ void Uyat::send_datapoint_command_(uint8_t datapoint_id,
                                    UyatDatapointType datapoint_type,
                                    const std::vector<uint8_t> &data) {
   std::vector<uint8_t> buffer;
-  buffer.reserve(4u + data.size());
+  buffer.reserve(FRAME_CMD_HDR_SIZE + data.size());
   buffer.push_back(datapoint_id);
   buffer.push_back(static_cast<uint8_t>(datapoint_type));
   buffer.push_back(data.size() >> 8);
@@ -880,9 +868,7 @@ size_t Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, 
     return 0;
   }
 
-  auto byte_at = [&](size_t idx) -> uint8_t { return buffer[offset + idx]; };
-
-  if (byte_at(0) == 0xFF) // special case: get all information
+  if (this->byte_at_(buffer, offset, 0) == 0xFF) // special case: get all information
   {
     want_ssid = true;
     want_country_code = true;
@@ -892,7 +878,7 @@ size_t Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, 
   {
     for (size_t i = 0; i < len; i++)
     {
-      switch (byte_at(i))
+      switch (this->byte_at_(buffer, offset, i))
       {
         case 0x01:
           want_ssid = true;
@@ -905,7 +891,7 @@ size_t Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, 
           break;
         default:
           ESP_LOGW(TAG, "Unknown GET_MODULE_INFORMATION request field 0x%02X",
-                   byte_at(i));
+                   this->byte_at_(buffer, offset, i));
       }
     }
   }
@@ -916,43 +902,44 @@ size_t Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, 
   }
 
   char *ptr = output_buf;
-  *ptr++ = Uyat::JSON_OPEN_BRACE[0];
+  size_t remaining = output_buf_size;
+  int written = 0;
 
-  if (want_ssid)
-  {
-    const char *ap_prefix = Uyat::JSON_AP_PREFIX;
-    while (*ap_prefix) *ptr++ = *ap_prefix++;
-    
-    const char *name = report_ap_name_;
-    while (*name) *ptr++ = *name++;
-    
-    *ptr++ = Uyat::JSON_AP_SUFFIX[0];
+  written = snprintf(ptr, remaining, "%s", Uyat::JSON_OPEN_BRACE);
+  ptr += written;
+  remaining -= written;
+
+  if (want_ssid) {
+    written = snprintf(ptr, remaining, "%s%s%s", Uyat::JSON_AP_PREFIX, report_ap_name_, Uyat::JSON_AP_SUFFIX);
+    ptr += written;
+    remaining -= written;
   }
-  
-  if (want_country_code)
-  {
-    if (ptr > output_buf + 1)
-    {
-      *ptr++ = Uyat::JSON_COMMA[0];
+
+  if (want_country_code) {
+    if (ptr > output_buf + Uyat::NULL_TERMINATOR_SIZE) {
+      written = snprintf(ptr, remaining, "%s", Uyat::JSON_COMMA);
+      ptr += written;
+      remaining -= written;
     }
-    const char *cc = Uyat::JSON_CC_FIELD;
-    while (*cc) *ptr++ = *cc++;
+    written = snprintf(ptr, remaining, "%s", Uyat::JSON_CC_FIELD);
+    ptr += written;
+    remaining -= written;
   }
-  
-  if (want_sn)
-  {
-    if (ptr > output_buf + 1)
-    {
-      *ptr++ = Uyat::JSON_COMMA[0];
+
+  if (want_sn) {
+    if (ptr > output_buf + Uyat::NULL_TERMINATOR_SIZE) {
+      written = snprintf(ptr, remaining, "%s", Uyat::JSON_COMMA);
+      ptr += written;
+      remaining -= written;
     }
-    const char *sn = Uyat::JSON_SN_FIELD;
-    while (*sn) *ptr++ = *sn++;
+    written = snprintf(ptr, remaining, "%s", Uyat::JSON_SN_FIELD);
+    ptr += written;
+    remaining -= written;
   }
 
-  *ptr++ = Uyat::JSON_CLOSE_BRACE[0];
-  *ptr = '\0';
+  snprintf(ptr, remaining, "%s", Uyat::JSON_CLOSE_BRACE);
 
-  return ptr - output_buf;
+  return ptr - output_buf + Uyat::NULL_TERMINATOR_SIZE;
 }
 
 void Uyat::schedule_heartbeat_(const bool initial)

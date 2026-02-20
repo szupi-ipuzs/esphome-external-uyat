@@ -109,7 +109,6 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void set_status_pin(InternalGPIOPin *status_pin) { this->status_pin_ = status_pin; }
   void send_generic_command(const UyatCommand &command) { send_command_(command); }
   UyatInitState get_init_state();
-  void set_report_ap_name(const std::string& ap_name) { this->report_ap_name_ = ap_name; }
 
 #ifdef USE_TIME
   void set_time_id(time::RealTimeClock *time_id) { this->time_id_ = time_id; }
@@ -157,25 +156,28 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
 
  protected:
   void handle_input_buffer_();
-  void handle_datapoints_(const uint8_t *buffer, size_t len);
+  void handle_datapoints_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
   optional<UyatDatapoint> get_datapoint_(uint8_t datapoint_id);
   // returns number of bytes to remove from the beginning of rx buffer
   std::size_t validate_message_();
 
-  void handle_command_(uint8_t command, uint8_t version, const uint8_t *buffer, size_t len);
-  void send_raw_command_(UyatCommand command);
+  void handle_command_(uint8_t command, uint8_t version, const std::deque<uint8_t> &buffer,
+                       size_t offset, size_t len);
+  void send_raw_command_(const UyatCommand &command);
   void process_command_queue_();
   void send_command_(const UyatCommand &command);
   void send_empty_command_(UyatCommandType command);
   void set_datapoint_value_(const UyatDatapoint& dp, const bool force = false);
-  void send_datapoint_command_(uint8_t datapoint_id, UyatDatapointType datapoint_type, std::vector<uint8_t> data);
+  void send_datapoint_command_(uint8_t datapoint_id, UyatDatapointType datapoint_type, const std::vector<uint8_t> &data);
   void set_status_pin_();
   void send_wifi_status_(const uint8_t status);
   uint8_t get_wifi_rssi_();
   void report_wifi_connected_or_retry_(const uint32_t delay_ms);
   void report_cloud_connected_();
   void query_product_info_with_retries_();
-  std::string process_get_module_information_(const uint8_t *buffer, size_t len);
+  // Returns number of bytes written (excluding null terminator), or 0 on failure
+  size_t process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len,
+                                         char *output_buf, size_t output_buf_size);
   void schedule_heartbeat_(const bool initial);
   void stop_heartbeats_();
 
@@ -183,7 +185,33 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void update_pairing_mode_sensor_();
 #endif
 
-  std::string report_ap_name_ = "smartlife";
+#ifndef UYAT_REPORT_AP_NAME
+#define UYAT_REPORT_AP_NAME "smartlife"
+#endif
+  static constexpr const char* report_ap_name_ = UYAT_REPORT_AP_NAME;
+
+  // Module information response format constants
+  static constexpr const char JSON_OPEN_BRACE[] = "{";
+  static constexpr const char JSON_CLOSE_BRACE[] = "}";
+  static constexpr const char JSON_COMMA[] = ",";
+  static constexpr const char JSON_AP_PREFIX[] = "\"ap:\":\"";
+  static constexpr const char JSON_AP_SUFFIX[] = "\"";
+  static constexpr const char JSON_CC_FIELD[] = "\"cc:\":\"0\"";
+  static constexpr const char JSON_SN_FIELD[] = "\"sn:\":\"1234567890\"";
+  
+  // Max module info buffer size computed from constants above
+  // {"ap":"<name>","cc":"0","sn":"1234567890"} + null terminator
+  static constexpr size_t MODULE_INFO_MAX_SIZE = 
+      sizeof(JSON_OPEN_BRACE) - 1 +
+      sizeof(JSON_AP_PREFIX) - 1 +
+      sizeof(UYAT_REPORT_AP_NAME) - 1 +
+      sizeof(JSON_AP_SUFFIX) - 1 +
+      sizeof(JSON_COMMA) - 1 +
+      sizeof(JSON_CC_FIELD) - 1 +
+      sizeof(JSON_COMMA) - 1 +
+      sizeof(JSON_SN_FIELD) - 1 +
+      sizeof(JSON_CLOSE_BRACE) - 1 +
+      1;  // null terminator
 #ifdef USE_TIME
   void send_local_time_();
   time::RealTimeClock *time_id_{nullptr};

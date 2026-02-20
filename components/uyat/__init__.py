@@ -185,7 +185,9 @@ CONFIG_SCHEMA = (
             cv.GenerateID(): cv.declare_id(Uyat),
             cv.Optional(CONF_DIAGNOSTICS): UYAT_DIAGNOSTIC_SENSORS_SCHEMA,
             cv.Optional(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
-            cv.Optional(CONF_REPORT_AP_NAME, default="smartlife"): cv.string,
+            cv.Optional(CONF_REPORT_AP_NAME, default="smartlife"): cv.All(
+                cv.string, cv.Length(max=32)
+            ),
             cv.Optional(CONF_IGNORE_MCU_UPDATE_ON_DATAPOINTS): cv.ensure_list(
                 cv.uint8_t
             ),
@@ -213,7 +215,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await uart.register_uart_device(var, config)
-    cg.add(var.set_report_ap_name(config[CONF_REPORT_AP_NAME]))
+    cg.add_define("UYAT_REPORT_AP_NAME", cg.safe_exp(f'"{config[CONF_REPORT_AP_NAME]}"'))
     if CONF_TIME_ID in config:
         time_ = await cg.get_variable(config[CONF_TIME_ID])
         cg.add(var.set_time_id(time_))

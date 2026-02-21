@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <deque>
 #include <optional>
 #include <variant>
 #include <string>
@@ -311,7 +312,8 @@ struct UyatDatapoint {
     return str_sprintf("Datapoint %u: %s (value: %s)", number, get_type_name(), value_to_string().c_str());
   }
 
-  static std::optional<UyatDatapoint> construct(const uint8_t* raw_data, const std::size_t raw_data_len, std::size_t& used_len)
+  static std::optional<UyatDatapoint> construct(const std::deque<uint8_t> &raw_data, const std::size_t offset,
+                                                const std::size_t raw_data_len, std::size_t &used_len)
   {
     used_len = 0;
     if (raw_data_len < 4u)
@@ -320,61 +322,79 @@ struct UyatDatapoint {
       return {};
     }
 
-    size_t payload_size = (raw_data[2] << 8) + raw_data[3];
+    auto byte_at = [&](size_t idx) -> uint8_t { return raw_data[offset + idx]; };
+    size_t payload_size = (byte_at(2u) << 8) + byte_at(3u);
     if ((0u == payload_size) || (payload_size > (raw_data_len - 4u)))
     {
       used_len = raw_data_len;
       return {};
     }
 
-    const uint8_t *payload = &raw_data[4u];
-
     used_len = payload_size + 4u;
-    if (raw_data[1] == static_cast<uint8_t>(UyatDatapointType::RAW))
+    const size_t payload_offset = offset + 4u;
+    const uint8_t dp_type = byte_at(1u);
+    const uint8_t dp_number = byte_at(0u);
+
+    if (dp_type == static_cast<uint8_t>(UyatDatapointType::RAW))
     {
-      return UyatDatapoint{raw_data[0], RawDatapointValue{std::vector<uint8_t>{payload, &payload[payload_size]}}};
+      std::vector<uint8_t> payload;
+      payload.reserve(payload_size);
+      for (size_t i = 0; i < payload_size; ++i) {
+        payload.push_back(raw_data[payload_offset + i]);
+      }
+      return UyatDatapoint{dp_number, RawDatapointValue{std::move(payload)}};
     }
-    if (raw_data[1] == static_cast<uint8_t>(UyatDatapointType::BOOLEAN))
+    if (dp_type == static_cast<uint8_t>(UyatDatapointType::BOOLEAN))
     {
       if (payload_size != 1u)
       {
         return {};
       }
-      return UyatDatapoint{raw_data[0], BoolDatapointValue{payload[0] != 0x00}};
+      return UyatDatapoint{dp_number, BoolDatapointValue{raw_data[payload_offset] != 0x00}};
     }
-    if (raw_data[1] == static_cast<uint8_t>(UyatDatapointType::INTEGER))
+    if (dp_type == static_cast<uint8_t>(UyatDatapointType::INTEGER))
     {
       if (payload_size != 4u)
       {
         return {};
       }
-      return UyatDatapoint{raw_data[0], UIntDatapointValue{encode_uint32(payload[0], payload[1], payload[2], payload[3])}};
+      return UyatDatapoint{dp_number,
+                           UIntDatapointValue{encode_uint32(raw_data[payload_offset], raw_data[payload_offset + 1u],
+                                                           raw_data[payload_offset + 2u], raw_data[payload_offset + 3u])}};
     }
-    if (raw_data[1] == static_cast<uint8_t>(UyatDatapointType::STRING))
+    if (dp_type == static_cast<uint8_t>(UyatDatapointType::STRING))
     {
-      return UyatDatapoint{raw_data[0], StringDatapointValue{std::string(reinterpret_cast<const char *>(payload), reinterpret_cast<const char *>(&payload[payload_size]))}};
+      std::string payload;
+      payload.reserve(payload_size);
+      for (size_t i = 0; i < payload_size; ++i) {
+        payload.push_back(static_cast<char>(raw_data[payload_offset + i]));
+      }
+      return UyatDatapoint{dp_number, StringDatapointValue{std::move(payload)}};
     }
-    if (raw_data[1] == static_cast<uint8_t>(UyatDatapointType::ENUM))
+    if (dp_type == static_cast<uint8_t>(UyatDatapointType::ENUM))
     {
       if (payload_size != 1u)
       {
         return {};
       }
-      return UyatDatapoint{raw_data[0], EnumDatapointValue{payload[0]}};
+      return UyatDatapoint{dp_number, EnumDatapointValue{raw_data[payload_offset]}};
     }
-    if (raw_data[1] == static_cast<uint8_t>(UyatDatapointType::BITMAP))
+    if (dp_type == static_cast<uint8_t>(UyatDatapointType::BITMAP))
     {
       if (payload_size == 1u)
       {
-        return UyatDatapoint{raw_data[0], BitmapDatapointValue{payload[0]}};
+        return UyatDatapoint{dp_number, BitmapDatapointValue{raw_data[payload_offset]}};
       }
       if (payload_size == 2u)
       {
-        return UyatDatapoint{raw_data[0], BitmapDatapointValue{encode_uint16(payload[0], payload[1])}};
+        return UyatDatapoint{dp_number,
+                             BitmapDatapointValue{encode_uint16(raw_data[payload_offset], raw_data[payload_offset + 1u])}};
       }
       if (payload_size == 4u)
       {
-        return UyatDatapoint{raw_data[0], BitmapDatapointValue{encode_uint32(payload[0], payload[1], payload[2], payload[3])}};
+        return UyatDatapoint{dp_number,
+                             BitmapDatapointValue{encode_uint32(raw_data[payload_offset], raw_data[payload_offset + 1u],
+                                                               raw_data[payload_offset + 2u], raw_data[payload_offset + 3u])}};
       }
     }
 

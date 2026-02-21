@@ -169,11 +169,12 @@ std::size_t Uyat::validate_message_() {
   }
 
   // valid message
-  std::vector<uint8_t> data(this->rx_message_.begin() + 6u, this->rx_message_.begin() + checksum_offset);
-  ESP_LOGV(TAG, "Received Uyat: CMD=0x%02X VERSION=%u DATA=[%s] INIT_STATE=%u",
-           command, version, format_hex_pretty(data).c_str(),
+  const size_t data_offset = 6u;
+  const size_t data_len = checksum_offset - data_offset;
+  ESP_LOGV(TAG, "Received Uyat: CMD=0x%02X VERSION=%u LEN=%zu INIT_STATE=%u",
+           command, version, data_len,
            static_cast<uint8_t>(this->init_state_));
-  this->handle_command_(command, version, data.data(), data.size());
+  this->handle_command_(command, version, this->rx_message_, data_offset, data_len);
 
   // the whole message can now be removed
   return (checksum_offset + 1u);
@@ -205,7 +206,8 @@ void Uyat::handle_input_buffer_() {
 }
 
 void Uyat::handle_command_(uint8_t command, uint8_t version,
-                           const uint8_t *buffer, size_t len) {
+                           const std::deque<uint8_t> &buffer,
+                           size_t offset, size_t len) {
   UyatCommandType command_type = (UyatCommandType)command;
 
   if (this->expected_response_.has_value() &&
@@ -217,9 +219,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
 
   switch (command_type) {
   case UyatCommandType::HEARTBEAT:
-    ESP_LOGV(TAG, "MCU Heartbeat (0x%02X)", buffer[0]);
+    ESP_LOGV(TAG, "MCU Heartbeat (0x%02X)", this->byte_at_(buffer, offset, 0));
     this->protocol_version_ = version;
-    if (buffer[0] == 0) {
+    if (this->byte_at_(buffer, offset, 0) == 0) {
       ESP_LOGI(TAG, "MCU restarted");
     }
     schedule_heartbeat_(false);
@@ -232,7 +234,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     // check it is a valid string made up of printable characters
     bool valid = true;
     for (size_t i = 0; i < len; i++) {
-      if (!std::isprint(buffer[i])) {
+      if (!std::isprint(this->byte_at_(buffer, offset, i))) {
         valid = false;
         break;
       }
@@ -257,8 +259,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
   }
   case UyatCommandType::CONF_QUERY: {
     if (len >= 2) {
-      this->status_pin_reported_ = buffer[0];
-      this->reset_pin_reported_ = buffer[1];
+      this->status_pin_reported_ = this->byte_at_(buffer, offset, 0);
+      this->reset_pin_reported_ = this->byte_at_(buffer, offset, 1);
     }
     if (this->init_state_ == UyatInitState::INIT_CONF) {
       // If mcu returned status gpio, then we can omit sending wifi state
@@ -351,7 +353,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       ESP_LOGI(TAG, "WIFI_SELECT");
       if (len > 0)
       {
-        this->requested_wifi_config_is_ap_ = (buffer[0] == 0x01);
+        this->requested_wifi_config_is_ap_ = (this->byte_at_(buffer, offset, 0) == 0x01);
       }
       else
       {
@@ -378,7 +380,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
                         [this] { this->dump_config(); });
       this->initialized_callback_.call();
     }
-    this->handle_datapoints_(buffer, len);
+    this->handle_datapoints_(buffer, offset, len);
 
     if (command_type == UyatCommandType::DATAPOINT_REPORT_SYNC) {
       this->send_command_(
@@ -445,7 +447,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
-    uint8_t subcommand = buffer[0];
+    uint8_t subcommand = this->byte_at_(buffer, offset, 0);
     switch ((UyatExtendedServicesCommandType)subcommand) {
     case UyatExtendedServicesCommandType::RESET_NOTIFICATION: {
       this->send_command_(UyatCommand{
@@ -509,17 +511,17 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
   }
 }
 
-void Uyat::handle_datapoints_(const uint8_t *buffer, size_t len) {
+void Uyat::handle_datapoints_(const std::deque<uint8_t> &buffer, size_t offset, size_t len) {
   while (len >= 4) {
     std::size_t used_len = 0u;
-    auto datapoint = UyatDatapoint::construct(buffer, len, used_len);
+    auto datapoint = UyatDatapoint::construct(buffer, offset, len, used_len);
     if (used_len == 0u)
     {
       used_len = len;
     }
 
     len -= used_len;
-    buffer += used_len;
+    offset += used_len;
 
     if (datapoint)
     {

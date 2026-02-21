@@ -157,12 +157,13 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
 
  protected:
   void handle_input_buffer_();
-  void handle_datapoints_(const uint8_t *buffer, size_t len);
+  void handle_datapoints_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
   optional<UyatDatapoint> get_datapoint_(uint8_t datapoint_id);
   // returns number of bytes to remove from the beginning of rx buffer
   std::size_t validate_message_();
 
-  void handle_command_(uint8_t command, uint8_t version, const uint8_t *buffer, size_t len);
+  void handle_command_(uint8_t command, uint8_t version, const std::deque<uint8_t> &buffer,
+                       size_t offset, size_t len);
   void send_raw_command_(UyatCommand command);
   void process_command_queue_();
   void send_command_(const UyatCommand &command);
@@ -216,6 +217,10 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   std::vector<uint8_t> unknown_extended_commands_set_;
   std::vector<uint8_t> unhandled_datapoints_set_;
 #endif
+ private:
+  inline uint8_t byte_at_(const std::deque<uint8_t> &buffer, size_t offset, size_t idx) const {
+    return buffer[offset + idx];
+  }
 };
 
 template<typename... Ts> class FactoryResetAction : public Action<Ts...> {

@@ -19,7 +19,10 @@ void UyatLightBinary::setup() {
 
 void UyatLightBinary::dump_config() {
   ESP_LOGCONFIG(UyatLightBinary::TAG, "Uyat Binary Light:");
-  ESP_LOGCONFIG(UyatLightBinary::TAG, "   Switch is %s", this->dp_switch_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  
+  this->dp_switch_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatLightBinary::TAG, "   Switch is %s", config_str);
 }
 
 light::LightTraits UyatLightBinary::get_traits() {

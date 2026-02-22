@@ -4,6 +4,7 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #include "esphome/core/util.h"
+#include "uyat_constants.h"
 
 namespace esphome::uyat {
 
@@ -52,19 +53,22 @@ void Uyat::setup() {
 
       if (this->unknown_commands_text_sensor_)
       {
-        const auto cmd_ids = format_hex_pretty(this->unknown_commands_set_, ' ', false);
+        char cmd_ids[UYAT_PRETTY_HEX_BUFFER_SIZE];
+        format_hex_pretty_to(cmd_ids, sizeof(cmd_ids), this->unknown_commands_set_.data(), this->unknown_commands_set_.size());
         this->unknown_commands_text_sensor_->publish_state(cmd_ids);
       }
 
       if (this->unknown_extended_commands_text_sensor_)
       {
-        const auto cmd_ids = format_hex_pretty(this->unknown_extended_commands_set_, ' ', false);
+        char cmd_ids[UYAT_PRETTY_HEX_BUFFER_SIZE];
+        format_hex_pretty_to(cmd_ids, sizeof(cmd_ids), this->unknown_extended_commands_set_.data(), this->unknown_extended_commands_set_.size());
         this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids);
       }
 
       if (this->unhandled_datapoints_text_sensor_)
       {
-        const auto dp_ids = format_hex_pretty(this->unhandled_datapoints_set_, ' ', false);
+        char dp_ids[UYAT_PRETTY_HEX_BUFFER_SIZE];
+        format_hex_pretty_to(dp_ids, sizeof(dp_ids), this->unhandled_datapoints_set_.data(), this->unhandled_datapoints_set_.size());
         this->unhandled_datapoints_text_sensor_->publish_state(dp_ids);
       }
 
@@ -116,7 +120,9 @@ void Uyat::dump_config() {
 
   ESP_LOGCONFIG(TAG, "  Listeners:");
   for (const auto &dp : this->listeners_) {
-    ESP_LOGCONFIG(TAG, "    %s", dp.configured.to_string().c_str());
+    char listener_str[UYAT_LOG_BUFFER_SIZE];
+    dp.configured.to_string(listener_str, sizeof(listener_str));
+    ESP_LOGCONFIG(TAG, "    %s", listener_str);
   }
 
   if (this->init_state_ > UyatInitState::INIT_CONF) {
@@ -170,8 +176,10 @@ std::size_t Uyat::validate_message_() {
 
   // valid message
   std::vector<uint8_t> data(this->rx_message_.begin() + 6u, this->rx_message_.begin() + checksum_offset);
+  char data_hex[UYAT_PRETTY_HEX_BUFFER_SIZE];
+  format_hex_pretty_to(data_hex, sizeof(data_hex), data.data(), data.size());
   ESP_LOGV(TAG, "Received Uyat: CMD=0x%02X VERSION=%u DATA=[%s] INIT_STATE=%u",
-           command, version, format_hex_pretty(data).c_str(),
+           command, version, data_hex,
            static_cast<uint8_t>(this->init_state_));
   this->handle_command_(command, version, data.data(), data.size());
 
@@ -440,8 +448,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     this->send_command_(
         UyatCommand{.cmd = UyatCommandType::GET_MAC_ADDRESS,
                     .payload = mac});
-    ESP_LOGV(TAG, "MAC address requested, reported as %s",
-              format_hex_pretty(mac).c_str());
+    char mac_hex[UYAT_PRETTY_HEX_BUFFER_SIZE];
+    format_hex_pretty_to(mac_hex, sizeof(mac_hex), mac.data(), mac.size());
+    ESP_LOGV(TAG, "MAC address requested, reported as %s", mac_hex);
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
@@ -523,7 +532,9 @@ void Uyat::handle_datapoints_(const uint8_t *buffer, size_t len) {
 
     if (datapoint)
     {
-      ESP_LOGD(TAG, "MCU reported %s", datapoint->to_string().c_str());
+      char datapoint_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+      datapoint->to_string(datapoint_str, sizeof(datapoint_str));
+      ESP_LOGD(TAG, "MCU reported %s", datapoint_str);
       // drop update if datapoint is in ignore_mcu_datapoint_update list
       if (this->ignore_mcu_update_on_datapoints_.end() != std::find(this->ignore_mcu_update_on_datapoints_.begin(), this->ignore_mcu_update_on_datapoints_.end(), datapoint->number))
       {
@@ -595,9 +606,11 @@ void Uyat::send_raw_command_(UyatCommand command) {
     break;
   }
 
+  char payload_hex[UYAT_PRETTY_HEX_BUFFER_SIZE];
+  format_hex_pretty_to(payload_hex, sizeof(payload_hex), command.payload.data(), command.payload.size());
   ESP_LOGV(TAG, "Sending Uyat: CMD=0x%02X VERSION=%u DATA=[%s] INIT_STATE=%u",
            static_cast<uint8_t>(command.cmd), version,
-           format_hex_pretty(command.payload).c_str(),
+           payload_hex,
            static_cast<uint8_t>(this->init_state_));
 
   this->write_array(
@@ -697,7 +710,9 @@ void Uyat::send_local_time_() {
 #endif
 
 void Uyat::set_datapoint_value(const UyatDatapoint& dp, const bool forced ) {
-  ESP_LOGD(TAG, "Setting %s", dp.to_string().c_str());
+  char datapoint_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+  dp.to_string(datapoint_str, sizeof(datapoint_str));
+  ESP_LOGD(TAG, "Setting %s", datapoint_str);
   auto configured_datapoint = this->get_datapoint_(dp.number);
   if (configured_datapoint.has_value()) {
     if (configured_datapoint->get_type() != dp.get_type())

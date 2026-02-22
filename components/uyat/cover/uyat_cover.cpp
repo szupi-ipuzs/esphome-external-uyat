@@ -145,7 +145,9 @@ void UyatCover::dump_config() {
     this->control_->dump_config();
   }
   if (this->direction_.has_value()) {
-    ESP_LOGCONFIG(UyatCover::TAG, "   Direction is %s", this->direction_->get_config().to_string().c_str());
+    char config_str[UYAT_LOG_BUFFER_SIZE];
+    this->direction_->get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatCover::TAG, "   Direction is %s", config_str);
   }
   this->position_.dump_config();
 }

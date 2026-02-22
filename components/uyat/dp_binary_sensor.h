@@ -19,19 +19,34 @@ struct DpBinarySensor
       const std::optional<uint8_t> bit_number;
       const bool inverted;
 
-      std::string to_string() const
+      void to_string(char* buffer, size_t size) const
       {
-         return str_sprintf("%s%s%s",
-            inverted? "Inverted " : "",
-            matching_dp.to_string().c_str(),
-            bit_number? str_sprintf(", bit %u", bit_number.value()).c_str() : ", whole"  );
+         char match_temp[UYAT_LOG_BUFFER_SIZE];
+         matching_dp.to_string(match_temp, sizeof(match_temp));
+
+         int written = snprintf(buffer, size, "%s%s",
+                                inverted? "Inverted " : "",
+                                match_temp);
+         size_t pos = (written > 0) ? static_cast<size_t>(written) : 0u;
+         if (pos >= size)
+         {
+            return;
+         }
+
+         if (bit_number) {
+            snprintf(buffer + pos, size - pos, ", bit %u", bit_number.value());
+         } else {
+            snprintf(buffer + pos, size - pos, ", whole");
+         }
       }
    };
 
    void init(DatapointHandler& handler)
    {
       handler.register_datapoint_listener(this->config_.matching_dp, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpBinarySensor::TAG, "%s processing as binary sensor", datapoint.to_string().c_str());
+         char temp_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+         datapoint.to_string(temp_str, sizeof(temp_str));
+         ESP_LOGV(DpBinarySensor::TAG, "%s processing as binary sensor", temp_str);
 
          if (!this->config_.matching_dp.matches(datapoint.get_type()))
          {
@@ -44,7 +59,8 @@ struct DpBinarySensor
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::BOOLEAN};
-               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               this->config_.matching_dp.to_string(temp_str, sizeof(temp_str));
+               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", temp_str);
             }
             this->value_ = apply_filters_(dp_value->value);
             callback_(value_.value());
@@ -55,7 +71,8 @@ struct DpBinarySensor
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::INTEGER};
-               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               this->config_.matching_dp.to_string(temp_str, sizeof(temp_str));
+               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", temp_str);
             }
             this->value_ = apply_filters_(dp_value->value);
             callback_(value_.value());
@@ -66,7 +83,8 @@ struct DpBinarySensor
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::ENUM};
-               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               this->config_.matching_dp.to_string(temp_str, sizeof(temp_str));
+               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", temp_str);
             }
             this->value_ = apply_filters_(dp_value->value);
             callback_(value_.value());
@@ -77,7 +95,8 @@ struct DpBinarySensor
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::BITMAP};
-               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               this->config_.matching_dp.to_string(temp_str, sizeof(temp_str));
+               ESP_LOGI(DpBinarySensor::TAG, "Resolved %s", temp_str);
             }
 
             this->value_ = apply_filters_(dp_value->value);

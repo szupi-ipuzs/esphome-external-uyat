@@ -48,7 +48,9 @@ void UyatSelect::on_value(const float value)
 
 void UyatSelect::dump_config() {
   LOG_SELECT("", "Uyat Select", this);
-  ESP_LOGCONFIG(UyatSelect::TAG, "  Select %s is %s", get_name().c_str(), this->dp_number_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  this->dp_number_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatSelect::TAG, "  Select %s is %s", get_name().c_str(), config_str);
   ESP_LOGCONFIG(UyatSelect::TAG, "  Options are:");
   const auto &options = this->traits.get_options();
   for (size_t i = 0; i < this->mappings_.size(); i++) {

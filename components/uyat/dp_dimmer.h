@@ -22,13 +22,15 @@ struct DpDimmer
       const uint32_t max_value;
       const bool inverted;
 
-      std::string to_string() const
+      void to_string(char* buffer, size_t size) const
       {
-         return str_sprintf("%s, [%u, %u]%s", matching_dp.to_string().c_str(), min_value, max_value, inverted? " inverted":"");
+         char temp_dp[UYAT_LOG_BUFFER_SIZE];
+         matching_dp.to_string(temp_dp, sizeof(temp_dp));
+         snprintf(buffer, size, "%s, [%u, %u]%s",
+                  temp_dp, min_value, max_value,
+                  inverted? " inverted":"");
       }
    };
-
-   DpDimmer(DpDimmer&&) = default;
    DpDimmer& operator=(DpDimmer&&) = default;
 
    DpDimmer(BrightnessChangedCallback callback, MatchingDatapoint dimmer_dp, const uint32_t min_value, const uint32_t max_value, const bool inverted):
@@ -44,7 +46,9 @@ struct DpDimmer
    {
       handler_ = &handler;
       handler.register_datapoint_listener(this->config_.matching_dp, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpNumber::TAG, "%s processing as dimmer", datapoint.to_string().c_str());
+         char datapoint_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+         datapoint.to_string(datapoint_str, sizeof(datapoint_str));
+         ESP_LOGV(DpNumber::TAG, "%s processing as dimmer", datapoint_str);
          if (!this->config_.matching_dp.matches(datapoint.get_type()))
          {
             ESP_LOGW(DpNumber::TAG, "Non-matching datapoint type %s!", datapoint.get_type_name());
@@ -56,7 +60,9 @@ struct DpDimmer
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::INTEGER};
-               ESP_LOGI(DpNumber::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpNumber::TAG, "Resolved %s", match_str);
             }
             last_received_value_ = mcu_value_to_percent(dp_value->value);
             if (config_.inverted)
@@ -71,7 +77,9 @@ struct DpDimmer
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::ENUM};
-               ESP_LOGI(DpNumber::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpNumber::TAG, "Resolved %s", match_str);
             }
             last_received_value_ = mcu_value_to_percent(dp_value->value);
             if (config_.inverted)
@@ -92,7 +100,9 @@ struct DpDimmer
    {
       if (this->handler_ == nullptr)
       {
-         ESP_LOGE(DpNumber::TAG, "DatapointHandler not initialized for %s", this->config_.to_string().c_str());
+         char config_str[UYAT_LOG_BUFFER_SIZE];
+         this->config_.to_string(config_str, sizeof(config_str));
+         ESP_LOGE(DpNumber::TAG, "DatapointHandler not initialized for %s", config_str);
          return;
       }
 
@@ -115,7 +125,9 @@ struct DpDimmer
 
       if (!this->config_.matching_dp.allows_single_type())
       {
-         ESP_LOGW(DpNumber::TAG, "Cannot set value, datapoint type not yet known for %s", this->config_.matching_dp.to_string().c_str());
+         char match_str[UYAT_LOG_BUFFER_SIZE];
+         this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+         ESP_LOGW(DpNumber::TAG, "Cannot set value, datapoint type not yet known for %s", match_str);
       }
       else if (this->config_.matching_dp.matches(UyatDatapointType::INTEGER))
       {
@@ -133,7 +145,9 @@ struct DpDimmer
       }
       else
       {
-         ESP_LOGW(DpNumber::TAG, "Unhandled datapoint type %s!", this->config_.matching_dp.to_string().c_str());
+         char match_str[UYAT_LOG_BUFFER_SIZE];
+         this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+         ESP_LOGW(DpNumber::TAG, "Unhandled datapoint type %s!", match_str);
       }
    }
 

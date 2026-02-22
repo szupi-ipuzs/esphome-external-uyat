@@ -49,17 +49,26 @@ void UyatFan::setup() {
 
 void UyatFan::dump_config() {
   LOG_FAN("", "Uyat Fan", this);
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  
   if (this->speed_.has_value()) {
-    ESP_LOGCONFIG(UyatFan::TAG, "  Speed is %s, [%u, %u]", this->speed_->dp_speed.get_config().to_string().c_str(), this->speed_->min_value, this->speed_->max_value);
+    this->speed_->dp_speed.get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatFan::TAG, "  Speed is %s, [%u, %u]", config_str, this->speed_->min_value, this->speed_->max_value);
   }
+  
   if (this->dp_switch_.has_value()) {
-    ESP_LOGCONFIG(UyatFan::TAG, "  Switch is %s", this->dp_switch_->get_config().to_string().c_str());
+    this->dp_switch_->get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatFan::TAG, "  Switch is %s", config_str);
   }
+  
   if (this->dp_oscillation_.has_value()) {
-    ESP_LOGCONFIG(UyatFan::TAG, "  Oscillation is %s", this->dp_oscillation_->get_config().to_string().c_str());
+    this->dp_oscillation_->get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatFan::TAG, "  Oscillation is %s", config_str);
   }
+  
   if (this->dp_direction_.has_value()) {
-    ESP_LOGCONFIG(UyatFan::TAG, "  Direction is %s", this->dp_direction_->get_config().to_string().c_str());
+    this->dp_direction_->get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatFan::TAG, "  Direction is %s", config_str);
   }
 }
 

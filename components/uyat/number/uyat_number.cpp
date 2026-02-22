@@ -25,7 +25,9 @@ void UyatNumber::control(float value) {
 
 void UyatNumber::dump_config() {
   LOG_NUMBER("", "Uyat Number", this);
-  ESP_LOGCONFIG(UyatNumber::TAG, "  Number %s is %s", get_name().c_str(), this->dp_number_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  this->dp_number_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatNumber::TAG, "  Number %s is %s", get_name().c_str(), config_str);
 }
 
 void UyatNumber::on_value(const float value)

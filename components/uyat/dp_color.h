@@ -50,9 +50,12 @@ struct DpColor
       MatchingDatapoint matching_dp;
       const UyatColorType color_type;
 
-      std::string to_string() const
+      void to_string(char* buffer, size_t size) const
       {
-         return str_sprintf("%s, color_type: %s", matching_dp.to_string().c_str(), DpColor::color_type_to_string(color_type));
+         char temp_dp[UYAT_LOG_BUFFER_SIZE];
+         matching_dp.to_string(temp_dp, sizeof(temp_dp));
+         snprintf(buffer, size, "%s, color_type: %s",
+                  temp_dp, DpColor::color_type_to_string(color_type));
       }
    };
 
@@ -67,7 +70,9 @@ struct DpColor
    {
       handler_ = &handler;
       handler.register_datapoint_listener(this->config_.matching_dp, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpColor::TAG, "%s processing as color", datapoint.to_string().c_str());
+         char datapoint_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+         datapoint.to_string(datapoint_str, sizeof(datapoint_str));
+         ESP_LOGV(DpColor::TAG, "%s processing as color", datapoint_str);
 
          if (!this->config_.matching_dp.matches(datapoint.get_type()))
          {
@@ -80,7 +85,9 @@ struct DpColor
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::STRING};
-               ESP_LOGI(DpColor::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpColor::TAG, "Resolved %s", match_str);
             }
             auto new_value = this->decode_(dp_value->value);
             if (new_value)
@@ -90,7 +97,7 @@ struct DpColor
             }
             else
             {
-               ESP_LOGW(DpColor::TAG, "Failed to decode color %s!", datapoint.to_string().c_str());
+               ESP_LOGW(DpColor::TAG, "Failed to decode color %s!", datapoint_str);
             }
          }
          else
@@ -106,7 +113,9 @@ struct DpColor
       this->last_set_value_ = v;
       if (this->handler_ == nullptr)
       {
-         ESP_LOGE(DpColor::TAG, "DatapointHandler not initialized for %s", this->config_.to_string().c_str());
+         char config_str[UYAT_LOG_BUFFER_SIZE];
+         this->config_.to_string(config_str, sizeof(config_str));
+         ESP_LOGE(DpColor::TAG, "DatapointHandler not initialized for %s", config_str);
          return;
       }
 

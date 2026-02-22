@@ -51,14 +51,25 @@ void UyatLightRGBCT::setup() {
 
 void UyatLightRGBCT::dump_config() {
   ESP_LOGCONFIG(UyatLightRGBCT::TAG, "Uyat RGBCT Light:");
-  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Switch is %s", this->dp_switch_.get_config().to_string().c_str());
-  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Dimmer is: %s", this->dp_dimmer_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  
+  this->dp_switch_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Switch is %s", config_str);
+  
+  this->dp_dimmer_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Dimmer is: %s", config_str);
+  
   if (this->dimmer_min_value_)
   {
-      ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Has min_value_datapoint: %s", this->dimmer_min_value_->get_config().matching_dp.to_string().c_str());
+      this->dimmer_min_value_->get_config().matching_dp.to_string(config_str, sizeof(config_str));
+      ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Has min_value_datapoint: %s", config_str);
   }
-  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Color is %s", this->dp_color_.get_config().to_string().c_str());
-  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   White Temperature is %s", this->dp_white_temperature_.get_config().to_string().c_str());
+  
+  this->dp_color_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   Color is %s", config_str);
+  
+  this->dp_white_temperature_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatLightRGBCT::TAG, "   White Temperature is %s", config_str);
 }
 
 light::LightTraits UyatLightRGBCT::get_traits() {

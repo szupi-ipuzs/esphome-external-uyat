@@ -4,8 +4,10 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <cstdio>
 
 #include "esphome/core/helpers.h"
+#include "uyat_constants.h"
 
 #pragma once
 
@@ -48,25 +50,46 @@ struct MatchingDatapoint
     }
   }
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    std::string type_list;
+    int written = snprintf(buffer, size, "Datapoint %u: ", number);
+    size_t pos = (written > 0) ? static_cast<size_t>(written) : 0u;
+    if (pos >= size)
+    {
+      return;
+    }
+
     if (types.empty())
     {
-      type_list = "ANY";
+      snprintf(buffer + pos, size - pos, "ANY");
+      return;
     }
-    else
+
+    for (size_t i = 0; i < types.size(); ++i)
     {
-      for (const auto& type : types)
+      if (i > 0)
       {
-        if (!type_list.empty())
+        written = snprintf(buffer + pos, size - pos, ", ");
+        if (written > 0)
         {
-          type_list += ", ";
+          pos += static_cast<size_t>(written);
+          if (pos >= size)
+          {
+            return;
+          }
         }
-        type_list += get_type_name(type);
+      }
+
+      written = snprintf(buffer + pos, size - pos, "%s", get_type_name(types[i]));
+      if (written > 0)
+      {
+        pos += static_cast<size_t>(written);
+        if (pos >= size)
+        {
+          return;
+        }
       }
     }
-    return str_sprintf("Datapoint %u:", number) + type_list;
   }
 
   bool matches(const UyatDatapointType dp_type) const
@@ -101,9 +124,14 @@ struct RawDatapointValue {
   static constexpr UyatDatapointType dp_type = UyatDatapointType::RAW;
   std::vector<uint8_t> value;
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    return format_hex_pretty(value);
+    size_t data_len = value.size();
+    if (data_len > UYAT_LOG_BUFFER_SIZE)
+    {
+      data_len = UYAT_LOG_BUFFER_SIZE;
+    }
+    format_hex_pretty_to(buffer, size, value.data(), data_len);
   }
 
   std::vector<uint8_t> to_payload() const
@@ -121,9 +149,9 @@ struct BoolDatapointValue {
   static constexpr UyatDatapointType dp_type = UyatDatapointType::BOOLEAN;
   bool value;
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    return TRUEFALSE(value);
+    snprintf(buffer, size, "%s", TRUEFALSE(value));
   }
 
   std::vector<uint8_t> to_payload() const
@@ -141,9 +169,9 @@ struct UIntDatapointValue {
   static constexpr UyatDatapointType dp_type = UyatDatapointType::INTEGER;
   uint32_t value;
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    return str_sprintf("%u", value);
+    snprintf(buffer, size, "%u", value);
   }
 
   std::vector<uint8_t> to_payload() const
@@ -166,9 +194,9 @@ struct StringDatapointValue {
   static constexpr UyatDatapointType dp_type = UyatDatapointType::STRING;
   std::string value;
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    return value;
+    snprintf(buffer, size, "%s", value.c_str());
   }
 
   std::vector<uint8_t> to_payload() const
@@ -192,9 +220,9 @@ struct EnumDatapointValue {
   static constexpr UyatDatapointType dp_type = UyatDatapointType::ENUM;
   uint8_t value;
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    return str_sprintf("%d", value);
+    snprintf(buffer, size, "%d", value);
   }
 
   std::vector<uint8_t> to_payload() const
@@ -212,9 +240,9 @@ struct BitmapDatapointValue {
   static constexpr UyatDatapointType dp_type = UyatDatapointType::BITMAP;
   uint32_t value;
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    return str_sprintf("%08X", value);
+    snprintf(buffer, size, "%08X", value);
   }
 
   std::vector<uint8_t> to_payload() const
@@ -290,10 +318,10 @@ struct UyatDatapoint {
     return MatchingDatapoint::get_type_name(get_type());
   }
 
-  std::string value_to_string() const
+  void value_to_string(char* buffer, size_t size) const
   {
-    return std::visit([](const auto& dp){
-      return dp.to_string();
+    std::visit([buffer, size](const auto& dp){
+      dp.to_string(buffer, size);
     },
     value);
   }
@@ -306,9 +334,13 @@ struct UyatDatapoint {
     value);
   }
 
-  std::string to_string() const
+  void to_string(char* buffer, size_t size) const
   {
-    return str_sprintf("Datapoint %u: %s (value: %s)", number, get_type_name(), value_to_string().c_str());
+    char temp_value[UYAT_PRETTY_HEX_BUFFER_SIZE];
+    value_to_string(temp_value, sizeof(temp_value));
+
+    snprintf(buffer, size, "Datapoint %u: %s (value: %s)",
+             number, get_type_name(), temp_value);
   }
 
   static std::optional<UyatDatapoint> construct(const uint8_t* raw_data, const std::size_t raw_data_len, std::size_t& used_len)

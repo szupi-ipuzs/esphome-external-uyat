@@ -22,7 +22,9 @@ void UyatTextSensorMapped::setup() {
 
 void UyatTextSensorMapped::dump_config() {
   ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "Uyat Mapped Text Sensor:");
-  ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "  Text Sensor %s is %s", get_name().c_str(), this->dp_number_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  this->dp_number_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "  Text Sensor %s is %s", get_name().c_str(), config_str);
   ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "  Options are:");
   for (const auto& item: this->mapping_) {
     ESP_LOGCONFIG(UyatTextSensorMapped::TAG, "    %u: %s", item.first, item.second.c_str());

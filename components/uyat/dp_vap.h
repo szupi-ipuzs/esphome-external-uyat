@@ -16,8 +16,8 @@ struct DpVAP
       uint32_t a;
       uint32_t p;
 
-      std::string to_string() const {
-         return str_sprintf("V: %u, A: %u, P: %u", v, a, p);
+      void to_string(char* buffer, size_t size) const {
+         snprintf(buffer, size, "V: %u, A: %u, P: %u", v, a, p);
       }
    };
    using OnValueCallback = std::function<void(const VAPValue&)>;
@@ -26,9 +26,9 @@ struct DpVAP
    {
       MatchingDatapoint matching_dp;
 
-      std::string to_string() const
+      void to_string(char* buffer, size_t size) const
       {
-         return this->matching_dp.to_string();
+         this->matching_dp.to_string(buffer, size);
       }
    };
 
@@ -36,7 +36,9 @@ struct DpVAP
    {
       handler_ = &handler;
       handler.register_datapoint_listener(this->config_.matching_dp, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpVAP::TAG, "%s processing as VAP", datapoint.to_string().c_str());
+         char datapoint_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+         datapoint.to_string(datapoint_str, sizeof(datapoint_str));
+         ESP_LOGV(DpVAP::TAG, "%s processing as VAP", datapoint_str);
 
          if (!this->config_.matching_dp.matches(datapoint.get_type()))
          {
@@ -53,7 +55,7 @@ struct DpVAP
             }
             else
             {
-               ESP_LOGW(DpVAP::TAG, "Failed to decode VAP from datapoint %s", datapoint.to_string().c_str());
+               ESP_LOGW(DpVAP::TAG, "Failed to decode VAP from datapoint %s", datapoint_str);
             }
          }
          else

@@ -19,9 +19,12 @@ struct DpNumber
       const float offset;
       const float multiplier;
 
-      std::string to_string() const
+      void to_string(char* buffer, size_t size) const
       {
-         return str_sprintf("%s, offset=%.2f, multiplier=%.2f", matching_dp.to_string().c_str(), offset, multiplier);
+         char temp_dp[UYAT_LOG_BUFFER_SIZE];
+         matching_dp.to_string(temp_dp, sizeof(temp_dp));
+         snprintf(buffer, size, "%s, offset=%.2f, multiplier=%.2f",
+                  temp_dp, offset, multiplier);
       }
    };
 
@@ -29,7 +32,9 @@ struct DpNumber
    {
       handler_ = &handler;
       handler.register_datapoint_listener(this->config_.matching_dp, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpNumber::TAG, "%s processing as number", datapoint.to_string().c_str());
+         char datapoint_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+         datapoint.to_string(datapoint_str, sizeof(datapoint_str));
+         ESP_LOGV(DpNumber::TAG, "%s processing as number", datapoint_str);
 
          if (!this->config_.matching_dp.matches(datapoint.get_type()))
          {
@@ -42,7 +47,9 @@ struct DpNumber
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::BOOLEAN};
-               ESP_LOGI(DpNumber::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpNumber::TAG, "Resolved %s", match_str);
             }
             this->last_received_value_ = calculate_logical_value(dp_value->value);
             callback_(last_received_value_.value());
@@ -53,7 +60,9 @@ struct DpNumber
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::INTEGER};
-               ESP_LOGI(DpNumber::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpNumber::TAG, "Resolved %s", match_str);
             }
             this->last_received_value_ = calculate_logical_value(dp_value->value);
             callback_(last_received_value_.value());
@@ -64,7 +73,9 @@ struct DpNumber
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::ENUM};
-               ESP_LOGI(DpNumber::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpNumber::TAG, "Resolved %s", match_str);
             }
             this->last_received_value_ = calculate_logical_value(dp_value->value);
             callback_(last_received_value_.value());
@@ -75,7 +86,9 @@ struct DpNumber
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::BITMAP};
-               ESP_LOGI(DpNumber::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpNumber::TAG, "Resolved %s", match_str);
             }
             this->last_received_value_ = calculate_logical_value(dp_value->value);
             callback_(last_received_value_.value());
@@ -105,18 +118,23 @@ struct DpNumber
 
    void set_value(const float value, const bool forced = false)
    {
+      char config_str[UYAT_LOG_BUFFER_SIZE];
+      
       if (this->handler_ == nullptr)
       {
-         ESP_LOGE(DpNumber::TAG, "DatapointHandler not initialized for %s", this->config_.to_string().c_str());
+         this->config_.to_string(config_str, sizeof(config_str));
+         ESP_LOGE(DpNumber::TAG, "DatapointHandler not initialized for %s", config_str);
          return;
       }
 
-      ESP_LOGV(DpNumber::TAG, "Setting value to %.3f for %s", value, this->get_config().to_string().c_str());
+      this->get_config().to_string(config_str, sizeof(config_str));
+      ESP_LOGV(DpNumber::TAG, "Setting value to %.3f for %s", value, config_str);
       this->last_set_value_ = value;
       uint32_t raw_value = static_cast<uint32_t>(lround((value - this->config_.offset)* this->config_.multiplier));
       if (!this->config_.matching_dp.allows_single_type())
       {
-         ESP_LOGW(DpNumber::TAG, "Cannot set value, datapoint type not yet known for %s", this->config_.matching_dp.to_string().c_str());
+         this->config_.matching_dp.to_string(config_str, sizeof(config_str));
+         ESP_LOGW(DpNumber::TAG, "Cannot set value, datapoint type not yet known for %s", config_str);
       }
       else
       if (this->config_.matching_dp.matches(UyatDatapointType::BITMAP))
@@ -150,7 +168,8 @@ struct DpNumber
       }
       else
       {
-         ESP_LOGW(DpNumber::TAG, "Unhandled datapoint type %s!", this->config_.matching_dp.to_string().c_str());
+         this->config_.matching_dp.to_string(config_str, sizeof(config_str));
+         ESP_LOGW(DpNumber::TAG, "Unhandled datapoint type %s!", config_str);
       }
    }
 

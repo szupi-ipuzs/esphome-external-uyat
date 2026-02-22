@@ -18,6 +18,7 @@
 #endif
 
 #include "uyat_datapoint_types.h"
+#include "uyat_constants.h"
 
 namespace esphome::uyat
 {

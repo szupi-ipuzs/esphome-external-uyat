@@ -18,12 +18,16 @@ void UyatSensorVAP::setup() {
 
 void UyatSensorVAP::dump_config() {
   LOG_SENSOR("", "Uyat VAP Sensor", this);
-  ESP_LOGCONFIG(UyatSensorVAP::TAG, "  VAP Sensor %s is %s", get_name().c_str(), this->dp_vap_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  this->dp_vap_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatSensorVAP::TAG, "  VAP Sensor %s is %s", get_name().c_str(), config_str);
 }
 
 void UyatSensorVAP::on_value(const DpVAP::VAPValue& value)
 {
-  ESP_LOGV(UyatSensorVAP::TAG, "MCU reported %s is: %.4f", get_name().c_str(), value.to_string().c_str());
+  char value_str[UYAT_LOG_BUFFER_SIZE];
+  value.to_string(value_str, sizeof(value_str));
+  ESP_LOGV(UyatSensorVAP::TAG, "MCU reported %s is: %s", get_name().c_str(), value_str);
   if (this->value_type_ == UyatVAPValueType::VOLTAGE)
     this->publish_state(static_cast<float>(value.v));
   else if (this->value_type_ == UyatVAPValueType::AMPERAGE)

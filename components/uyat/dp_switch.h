@@ -18,9 +18,13 @@ struct DpSwitch
       MatchingDatapoint matching_dp;
       const bool inverted;
 
-      const std::string to_string() const
+      void to_string(char* buffer, size_t size) const
       {
-         return str_sprintf("%s%s", this->inverted? "Inverted " : "", this->matching_dp.to_string().c_str());
+         char temp_dp[UYAT_LOG_BUFFER_SIZE];
+         this->matching_dp.to_string(temp_dp, sizeof(temp_dp));
+         snprintf(buffer, size, "%s%s",
+                  this->inverted? "Inverted " : "",
+                  temp_dp);
       }
    };
 
@@ -28,7 +32,9 @@ struct DpSwitch
    {
       this->handler_ = &handler;
       this->handler_->register_datapoint_listener(this->config_.matching_dp, [this](const UyatDatapoint &datapoint) {
-         ESP_LOGV(DpSwitch::TAG, "%s processing as switch", datapoint.to_string().c_str());
+         char datapoint_str[UYAT_PRETTY_HEX_BUFFER_SIZE];
+         datapoint.to_string(datapoint_str, sizeof(datapoint_str));
+         ESP_LOGV(DpSwitch::TAG, "%s processing as switch", datapoint_str);
 
          if (!this->config_.matching_dp.matches(datapoint.get_type()))
          {
@@ -41,7 +47,9 @@ struct DpSwitch
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::BOOLEAN};
-               ESP_LOGI(DpSwitch::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpSwitch::TAG, "Resolved %s", match_str);
             }
             received_value_ = invert_if_needed(dp_value->value);
             callback_(received_value_.value());
@@ -52,7 +60,9 @@ struct DpSwitch
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::INTEGER};
-               ESP_LOGI(DpSwitch::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpSwitch::TAG, "Resolved %s", match_str);
             }
 
             received_value_ = invert_if_needed(dp_value->value != 0);
@@ -64,7 +74,9 @@ struct DpSwitch
             if (!this->config_.matching_dp.allows_single_type())
             {
                this->config_.matching_dp.types = {UyatDatapointType::ENUM};
-               ESP_LOGI(DpSwitch::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
+               char match_str[UYAT_LOG_BUFFER_SIZE];
+               this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+               ESP_LOGI(DpSwitch::TAG, "Resolved %s", match_str);
             }
             received_value_ = invert_if_needed(dp_value->value != 0);
             callback_(received_value_.value());
@@ -96,14 +108,18 @@ struct DpSwitch
    {
       if (this->handler_ == nullptr)
       {
-         ESP_LOGE(DpSwitch::TAG, "DatapointHandler not initialized for %s", this->config_.to_string().c_str());
+         char config_str[UYAT_LOG_BUFFER_SIZE];
+         this->config_.to_string(config_str, sizeof(config_str));
+         ESP_LOGE(DpSwitch::TAG, "DatapointHandler not initialized for %s", config_str);
          return;
       }
 
       this->set_value_ = value;
       if (!this->config_.matching_dp.allows_single_type())
       {
-         ESP_LOGW(DpSwitch::TAG, "Cannot set value, datapoint type not yet known for %s", this->config_.matching_dp.to_string().c_str());
+         char match_str[UYAT_LOG_BUFFER_SIZE];
+         this->config_.matching_dp.to_string(match_str, sizeof(match_str));
+         ESP_LOGW(DpSwitch::TAG, "Cannot set value, datapoint type not yet known for %s", match_str);
          return;
       }
       if (this->config_.matching_dp.matches(UyatDatapointType::BOOLEAN))

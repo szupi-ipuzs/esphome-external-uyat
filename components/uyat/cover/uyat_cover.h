@@ -78,7 +78,9 @@ class UyatCover : public cover::Cover, public Component {
 
     void dump_config() const
     {
-      ESP_LOGCONFIG(UyatCover::TAG, "   Control is %s", dp_number.get_config().to_string().c_str());
+      char config_str[UYAT_LOG_BUFFER_SIZE];
+      dp_number.get_config().to_string(config_str, sizeof(config_str));
+      ESP_LOGCONFIG(UyatCover::TAG, "   Control is %s", config_str);
     }
 
     bool supports_open() const
@@ -182,12 +184,17 @@ class UyatCover : public cover::Cover, public Component {
 
     void dump_config() const
     {
+      char config_str[UYAT_LOG_BUFFER_SIZE];
+      
       if (dp_position.has_value())
       {
-        ESP_LOGCONFIG(UyatCover::TAG, "   Position is %s", dp_position->get_config().to_string().c_str());
+        dp_position->get_config().to_string(config_str, sizeof(config_str));
+        ESP_LOGCONFIG(UyatCover::TAG, "   Position is %s", config_str);
       }
+      
       if (report_dp_position.has_value()) {
-        ESP_LOGCONFIG(UyatCover::TAG, "   Position Report is %s", report_dp_position->get_config().to_string().c_str());
+        report_dp_position->get_config().to_string(config_str, sizeof(config_str));
+        ESP_LOGCONFIG(UyatCover::TAG, "   Position Report is %s", config_str);
       }
     }
   };

@@ -264,8 +264,11 @@ climate::ClimateTraits UyatClimate::traits() {
 
 void UyatClimate::dump_config() {
   LOG_CLIMATE("", "Uyat Climate", this);
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  
   if (this->dp_switch_.has_value()) {
-    ESP_LOGCONFIG(UyatClimate::TAG, "  Switch is %s", this->dp_switch_->get_config().to_string().c_str());
+    this->dp_switch_->get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatClimate::TAG, "  Switch is %s", config_str);
   }
   if (this->dp_active_state_.has_value()) {
     this->dp_active_state_->dump_config();
@@ -276,13 +279,16 @@ void UyatClimate::dump_config() {
   this->active_state_pins_.dump_config();
   this->presets_.dump_config();
   if (this->swing_modes_.dp_vertical.has_value()) {
-    ESP_LOGCONFIG(UyatClimate::TAG, "  Swing Vertical is %s", this->swing_modes_.dp_vertical->get_config().to_string().c_str());
+    this->swing_modes_.dp_vertical->get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatClimate::TAG, "  Swing Vertical is %s", config_str);
   }
   if (this->swing_modes_.dp_horizontal.has_value()) {
-    ESP_LOGCONFIG(UyatClimate::TAG, "  Swing Horizontal is %s", this->swing_modes_.dp_horizontal->get_config().to_string().c_str());
+    this->swing_modes_.dp_horizontal->get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatClimate::TAG, "  Swing Horizontal is %s", config_str);
   }
   if (this->fan_modes_.has_value()) {
-    ESP_LOGCONFIG(UyatClimate::TAG, "  Fan Speed is %s", this->fan_modes_->dp_number.get_config().to_string().c_str());
+    this->fan_modes_->dp_number.get_config().to_string(config_str, sizeof(config_str));
+    ESP_LOGCONFIG(UyatClimate::TAG, "  Fan Speed is %s", config_str);
   }
 }
 

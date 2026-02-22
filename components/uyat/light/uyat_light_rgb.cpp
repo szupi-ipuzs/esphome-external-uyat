@@ -23,8 +23,13 @@ void UyatLightRGB::setup() {
 
 void UyatLightRGB::dump_config() {
   ESP_LOGCONFIG(UyatLightRGB::TAG, "Uyat RGB Light:");
-  ESP_LOGCONFIG(UyatLightRGB::TAG, "   Switch is %s", this->dp_switch_.get_config().to_string().c_str());
-  ESP_LOGCONFIG(UyatLightRGB::TAG, "   Color is %s", this->dp_color_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  
+  this->dp_switch_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatLightRGB::TAG, "   Switch is %s", config_str);
+  
+  this->dp_color_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatLightRGB::TAG, "   Color is %s", config_str);
 }
 
 light::LightTraits UyatLightRGB::get_traits() {

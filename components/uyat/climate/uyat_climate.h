@@ -127,7 +127,9 @@ class UyatClimate : public climate::Climate, public Component {
 
      void dump_config() const
      {
-        ESP_LOGCONFIG(UyatClimate::TAG, "  Active state is %s", dp_number.get_config().to_string().c_str());
+        char config_str[UYAT_LOG_BUFFER_SIZE];
+        dp_number.get_config().to_string(config_str, sizeof(config_str));
+        ESP_LOGCONFIG(UyatClimate::TAG, "  Active state is %s", config_str);
      }
 
      std::optional<climate::ClimateMode> last_value_to_mode() const
@@ -329,14 +331,21 @@ class UyatClimate : public climate::Climate, public Component {
 
     void dump_config() const
     {
+      char config_str[UYAT_LOG_BUFFER_SIZE];
+      
       if (boost.dp.has_value()) {
-        ESP_LOGCONFIG(UyatClimate::TAG, "  Boost is %s", boost.dp->get_config().to_string().c_str());
+        boost.dp->get_config().to_string(config_str, sizeof(config_str));
+        ESP_LOGCONFIG(UyatClimate::TAG, "  Boost is %s", config_str);
       }
+      
       if (eco.dp.has_value()) {
-        ESP_LOGCONFIG(UyatClimate::TAG, "  Eco is %s", eco.dp->get_config().to_string().c_str());
+        eco.dp->get_config().to_string(config_str, sizeof(config_str));
+        ESP_LOGCONFIG(UyatClimate::TAG, "  Eco is %s", config_str);
       }
+      
       if (sleep.dp.has_value()) {
-        ESP_LOGCONFIG(UyatClimate::TAG, "  Sleep is %s", sleep.dp->get_config().to_string().c_str());
+        sleep.dp->get_config().to_string(config_str, sizeof(config_str));
+        ESP_LOGCONFIG(UyatClimate::TAG, "  Sleep is %s", config_str);
       }
     }
 
@@ -422,9 +431,14 @@ class UyatClimate : public climate::Climate, public Component {
 
     void dump_config() const
     {
-      ESP_LOGCONFIG(UyatClimate::TAG, "  Target Temperature is %s", dp_target.get_config().to_string().c_str());
+      char config_str[UYAT_LOG_BUFFER_SIZE];
+      
+      dp_target.get_config().to_string(config_str, sizeof(config_str));
+      ESP_LOGCONFIG(UyatClimate::TAG, "  Target Temperature is %s", config_str);
+      
       if (dp_current.has_value()) {
-        ESP_LOGCONFIG(UyatClimate::TAG, "  Current Temperature is %s", dp_current->get_config().to_string().c_str());
+        dp_current->get_config().to_string(config_str, sizeof(config_str));
+        ESP_LOGCONFIG(UyatClimate::TAG, "  Current Temperature is %s", config_str);
       }
     }
 

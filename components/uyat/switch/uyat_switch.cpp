@@ -26,7 +26,9 @@ void UyatSwitch::write_state(bool state) {
 
 void UyatSwitch::dump_config() {
   LOG_SWITCH("", "Uyat Switch", this);
-  ESP_LOGCONFIG(UyatSwitch::TAG, "  Switch %s is %s", get_name().c_str(), this->dp_switch_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  this->dp_switch_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatSwitch::TAG, "  Switch %s is %s", get_name().c_str(), config_str);
 }
 
 void UyatSwitch::on_value(const bool value)

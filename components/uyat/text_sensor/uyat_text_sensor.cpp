@@ -19,7 +19,9 @@ void UyatTextSensor::setup() {
 
 void UyatTextSensor::dump_config() {
   ESP_LOGCONFIG(UyatTextSensor::TAG, "Uyat Text Sensor:");
-  ESP_LOGCONFIG(UyatTextSensor::TAG, "  Text Sensor %s is %s", get_name().c_str(), this->dp_text_.get_config().to_string().c_str());
+  char config_str[UYAT_LOG_BUFFER_SIZE];
+  this->dp_text_.get_config().to_string(config_str, sizeof(config_str));
+  ESP_LOGCONFIG(UyatTextSensor::TAG, "  Text Sensor %s is %s", get_name().c_str(), config_str);
 }
 
 void UyatTextSensor::on_value(const std::string& value)

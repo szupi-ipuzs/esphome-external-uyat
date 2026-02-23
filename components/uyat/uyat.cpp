@@ -17,6 +17,9 @@ static const uint8_t NET_STATUS_CLOUD_CONNECTED = 0x04;
 static const uint8_t FAKE_WIFI_RSSI = 100;
 static const uint64_t UART_MAX_POLL_TIME_MS = 50;
 
+// Datapoint command header size (id + type + length_hi + length_lo)
+static const size_t FRAME_CMD_HDR_SIZE = 4u;
+
 #ifdef UYAT_DIAGNOSTICS_ENABLED
 static void add_unique_to_vector(std::vector<uint8_t> &vec, const uint8_t value) {
   if (std::find(vec.begin(), vec.end(), value) == vec.end()) {
@@ -240,13 +243,18 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       }
     }
     if (valid) {
-      this->product_ = std::string(reinterpret_cast<const char *>(buffer), len);
+      bool same = (len == this->product_.size() && std::equal(this->product_.begin(), this->product_.end(), buffer.begin() + offset));
+      if (!same) {
+        std::string product_candidate(buffer.begin() + offset, buffer.begin() + offset + len);
+        ESP_LOGD(TAG, "Product info changed from '%s' to '%s'", this->product_.c_str(), product_candidate.c_str());
+        this->product_ = product_candidate;
 #ifdef UYAT_DIAGNOSTICS_ENABLED
       if (this->product_text_sensor_)
       {
         this->product_text_sensor_->publish_state(this->product_);
       }
 #endif
+    }
     } else {
       this->product_ = R"({"p":"INVALID"})";
     }
@@ -442,8 +450,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     this->send_command_(
         UyatCommand{.cmd = UyatCommandType::GET_MAC_ADDRESS,
                     .payload = mac});
-    ESP_LOGV(TAG, "MAC address requested, reported as %s",
-              format_hex_pretty(mac).c_str());
+    char mac_str[format_hex_pretty_size(6u)];
+    format_hex_pretty_to(mac_str, mac);
+    ESP_LOGV(TAG, "MAC address requested, reported as %s", mac_str);
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
@@ -469,15 +478,16 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     }
     case UyatExtendedServicesCommandType::GET_MODULE_INFORMATION: {
       std::vector<uint8_t> response_payload;
-      std::string module_info_str;
+      char module_info_buf[Uyat::MODULE_INFO_MAX_SIZE] = { '\0' };
       response_payload.push_back(static_cast<uint8_t>(
                   UyatExtendedServicesCommandType::GET_MODULE_INFORMATION));
+      size_t module_info_str_len = 0;
       if (len >= 2)
       {
-        module_info_str = process_get_module_information_(&buffer[1], len - 1);
+        module_info_str_len = process_get_module_information_(&buffer[1], len - 1, module_info_buf, sizeof(module_info_buf));
       }
 
-      if (module_info_str.empty())
+      if (module_info_str_len == 0)
       {
         response_payload.push_back(0x01);  // failure
       }
@@ -485,8 +495,8 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       {
         response_payload.push_back(0x00);  // success
         response_payload.insert(response_payload.end(),
-                                module_info_str.begin(),
-                                module_info_str.end());
+                                module_info_buf, 
+                                module_info_buf + module_info_str_len);
       }
 
       send_raw_command_(UyatCommand{
@@ -597,9 +607,18 @@ void Uyat::send_raw_command_(UyatCommand command) {
     break;
   }
 
-  ESP_LOGV(TAG, "Sending Uyat: CMD=0x%02X VERSION=%u DATA=[%s] INIT_STATE=%u",
+  char pretty_hex_str[format_hex_pretty_size(PRETTY_HEX_LOG_MAX_SIZE)];
+  const size_t payload_real_size = command.payload.size();
+  size_t payload_log_size = payload_real_size;
+  if (payload_log_size > PRETTY_HEX_LOG_MAX_SIZE)
+  {    
+    payload_log_size = PRETTY_HEX_LOG_MAX_SIZE;
+  }
+  format_hex_pretty_to(pretty_hex_str, command.payload.data(), payload_log_size);
+  ESP_LOGV(TAG, "Sending Uyat: CMD=0x%02X VERSION=%u DATA%s=[%s] INIT_STATE=%u",
            static_cast<uint8_t>(command.cmd), version,
-           format_hex_pretty(command.payload).c_str(),
+           payload_real_size > PRETTY_HEX_LOG_MAX_SIZE ? " (truncated)" : "",
+           pretty_hex_str,
            static_cast<uint8_t>(this->init_state_));
 
   this->write_array(
@@ -816,7 +835,7 @@ void Uyat::query_product_info_with_retries_()
     });
 }
 
-std::string Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
+size_t Uyat::process_get_module_information_(const uint8_t *buffer, size_t len, char *output_buf, size_t output_buf_size)
 {
   // By default, we return an empty string indicating failure
   bool want_ssid = false;
@@ -825,7 +844,7 @@ std::string Uyat::process_get_module_information_(const uint8_t *buffer, size_t 
 
   if (len == 0)
   {
-    return {};
+    return 0;
   }
 
   if (buffer[0] == 0xFF) // special case: get all information
@@ -858,35 +877,48 @@ std::string Uyat::process_get_module_information_(const uint8_t *buffer, size_t 
 
   if (!want_ssid && !want_country_code && !want_sn)
   {
-    return {};
+    return 0;
   }
 
-  std::string module_info_str = "{";
+  char *ptr = output_buf;
+  size_t remaining = output_buf_size;
+  int written = 0;
 
-  if (want_ssid)
-  {
-    module_info_str += "\"ap:\":\"" + report_ap_name_ + "\"";
+  written = snprintf(ptr, remaining, "%s", Uyat::JSON_OPEN_BRACE);
+  ptr += written;
+  remaining -= written;
+
+  if (want_ssid) {
+    written = snprintf(ptr, remaining, "%s%s%s", Uyat::JSON_AP_PREFIX, report_ap_name_, Uyat::JSON_AP_SUFFIX);
+    ptr += written;
+    remaining -= written;
   }
-  if (want_country_code)
-  {
-    if (module_info_str.length() > 1)
-    {
-      module_info_str.push_back(',');
+
+  if (want_country_code) {
+    if (ptr > output_buf + Uyat::NULL_TERMINATOR_SIZE) {
+      written = snprintf(ptr, remaining, "%s", Uyat::JSON_COMMA);
+      ptr += written;
+      remaining -= written;
     }
-    module_info_str += "\"cc\":\"0\"";  // 0 means China
+    written = snprintf(ptr, remaining, "%s", Uyat::JSON_CC_FIELD);
+    ptr += written;
+    remaining -= written;
   }
-  if (want_sn)
-  {
-    if (module_info_str.length() > 1)
-    {
-      module_info_str.push_back(',');
+
+  if (want_sn) {
+    if (ptr > output_buf + Uyat::NULL_TERMINATOR_SIZE) {
+      written = snprintf(ptr, remaining, "%s", Uyat::JSON_COMMA);
+      ptr += written;
+      remaining -= written;
     }
-    module_info_str += "\"sn\":\"1234567890\"";
+    written = snprintf(ptr, remaining, "%s", Uyat::JSON_SN_FIELD);
+    ptr += written;
+    remaining -= written;
   }
 
-  module_info_str.push_back('}');
+  snprintf(ptr, remaining, "%s", Uyat::JSON_CLOSE_BRACE);
 
-  return module_info_str;
+  return ptr - output_buf + Uyat::NULL_TERMINATOR_SIZE;
 }
 
 void Uyat::schedule_heartbeat_(const bool initial)

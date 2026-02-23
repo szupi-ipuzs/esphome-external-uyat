@@ -109,7 +109,6 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void set_status_pin(InternalGPIOPin *status_pin) { this->status_pin_ = status_pin; }
   void send_generic_command(const UyatCommand &command) { send_command_(command); }
   UyatInitState get_init_state();
-  void set_report_ap_name(const std::string& ap_name) { this->report_ap_name_ = ap_name; }
 
 #ifdef USE_TIME
   void set_time_id(time::RealTimeClock *time_id) { this->time_id_ = time_id; }
@@ -176,7 +175,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void report_wifi_connected_or_retry_(const uint32_t delay_ms);
   void report_cloud_connected_();
   void query_product_info_with_retries_();
-  std::string process_get_module_information_(const uint8_t *buffer, size_t len);
+  size_t process_get_module_information_(const uint8_t *buffer, size_t len, char *output_buf, size_t output_buf_size);
   void schedule_heartbeat_(const bool initial);
   void stop_heartbeats_();
 
@@ -184,7 +183,6 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void update_pairing_mode_sensor_();
 #endif
 
-  std::string report_ap_name_ = "smartlife";
 #ifdef USE_TIME
   void send_local_time_();
   time::RealTimeClock *time_id_{nullptr};
@@ -221,6 +219,37 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   inline uint8_t byte_at_(const std::deque<uint8_t> &buffer, size_t offset, size_t idx) const {
     return buffer[offset + idx];
   }
+  
+#ifndef UYAT_REPORT_AP_NAME
+  #define UYAT_REPORT_AP_NAME "smartlife"
+#endif
+  static constexpr const char* report_ap_name_ = UYAT_REPORT_AP_NAME;
+  
+  // Module information response format constants
+  static constexpr const char JSON_OPEN_BRACE[] = "{";
+  static constexpr const char JSON_CLOSE_BRACE[] = "}";
+  static constexpr const char JSON_COMMA[] = ",";
+  static constexpr const char JSON_AP_PREFIX[] = "\"ap:\":\"";
+  static constexpr const char JSON_AP_SUFFIX[] = "\"";
+  static constexpr const char JSON_CC_FIELD[] = "\"cc:\":\"0\"";
+  static constexpr const char JSON_SN_FIELD[] = "\"sn:\":\"1234567890\"";
+  
+  // Max module info buffer size computed from constants above
+  // {"ap":"<name>","cc":"0","sn":"1234567890"}
+  static constexpr size_t NULL_TERMINATOR_SIZE = sizeof('\0');
+  static constexpr size_t MODULE_INFO_MAX_SIZE = 
+  sizeof(JSON_OPEN_BRACE) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_AP_PREFIX) - NULL_TERMINATOR_SIZE +
+  sizeof(UYAT_REPORT_AP_NAME) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_AP_SUFFIX) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_COMMA) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_CC_FIELD) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_COMMA) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_SN_FIELD) - NULL_TERMINATOR_SIZE +
+  sizeof(JSON_CLOSE_BRACE) - NULL_TERMINATOR_SIZE +
+  NULL_TERMINATOR_SIZE;
+
+  static constexpr size_t PRETTY_HEX_LOG_MAX_SIZE = 128;
 };
 
 template<typename... Ts> class FactoryResetAction : public Action<Ts...> {

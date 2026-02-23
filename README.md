@@ -759,6 +759,201 @@ fan:
 
 ## Light
 
+Different subsections are required depending on which datapoints are available for your light
+- `type` (required) - the type of light to interface. This setting determines what subsections are required and optional. Allowed types: `binary`, `dimmer`, `ct`, `rgb`, `rgbw`, `rgbct`.
+
+### type: binary
+- `switch` (optional) - the section containing the settings for the binary control of the light (ON/OFF):
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+  * `inverted` (optional) - should the behavior of this switch be inverted (ie. switch off if the datapoint evaluates to `True`). The default is `False`.
+
+```yaml
+light:
+  - platform: uyat
+    type: binary
+    name: "Light"
+    switch:
+      datapoint: 1
+      inverted: false
+```
+
+### type: dimmer
+- `switch` (optional) - the section containing the settings for the binary control of the light (ON/OFF):
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+  * `inverted` (optional) - should the behavior of this switch be inverted (ie. switch off if the datapoint evaluates to `True`). The default is `False`.
+- `dimmmer` (required) - the section containing settings for the light dimming part of the light entity:
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+  * `min_value` (optional) - minimal numerical value the dimmer can be set to. The default is `0`.
+  * `max_value` (optional) - maximum numerical value the  dimmer can be set to. The default is `255`.
+  * `inverted` (optional) - should the light intensity value be inverted where highest number is the dimmest possible value. The default is `False`.
+  * `min_value_datapoint` (optional) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+- `gamma_correct` (optional) - manual gamma correction factor. The default is `1.0`.
+- `default_transition_length` (optional) - on and off transition length. The default is `0s`.
+
+Example yaml:
+```yaml
+light:
+  - platform: uyat
+    type: dimmer
+    name: "Dimmer"
+    dimmer:
+      datapoint: 2
+      min_value: 1
+      max_value: 1000
+      inverted: false
+      min_value_datapoint: 2
+    switch:
+      datapoint: 1
+      inverted: false
+```
+
+### type: ct
+- `switch` (optional) - the section containing the settings for the binary control of the light (ON/OFF):
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+  * `inverted` (optional) - should the behavior of this switch be inverted (ie. switch off if the datapoint evaluates to `True`). The default is `False`.
+- `dimmmer` (required) - the section containing settings for the light dimming part of the light entity:
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+  * `min_value` (optional) - minimal numerical value the dimmer can be set to. The default is `0`.
+  * `max_value` (optional) - maximum numerical value the  dimmer can be set to. The default is `255`.
+  * `inverted` (optional) - should the light intensity value be inverted where highest number is the dimmest possible value. The default is `False`.
+  * `min_value_datapoint` (optional) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+- `white_temperature` (required) - the section containing settings for the white color temperature.
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+  * `min_value` (optional) - minimal numerical value the dimmer can be set to. The default is `0`.
+  * `max_value` (optional) - maximum numerical value the  dimmer can be set to. The default is `255`.
+  * `inverted` (optional) - should the light intensity value be inverted where highest number is the dimmest possible value. The default is `False`.
+  * `cold_white_color_temperature` (required) - the absolute max temperature value for cold white. Possible units are Kelvin (K) or Mireds(mireds).
+  * `warm_white_color_temperature` (required) - the absolute min temperature value for warm white. Possible units are Kelvin (K) or Mireds(mireds).
+- `gamma_correct` (optional) - manual gamma correction factor. The default is `1.0`.
+- `default_transition_length` (optional) - on and off transition length. The default is `0s`.
+
+Example yaml:
+```yaml
+light:
+  - platform: uyat
+    type: ct
+    name: "Color temperature"
+    dimmer:
+      datapoint: 2
+      min_value: 1
+      max_value: 1000
+      inverted: false
+      min_value_datapoint: 2
+    switch:
+      datapoint: 1
+      inverted: false
+    white_temperature:
+      datapoint: 101
+      cold_white_color_temperature: 6500K
+      warm_white_color_temperature: 3000K
+
+```
+
+### type: rgb
+- `switch` (optional) - the section containing the settings for the binary control of the light (ON/OFF):
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+  * `inverted` (optional) - should the behavior of this switch be inverted (ie. switch off if the datapoint evaluates to `True`). The default is `False`.
+- `color` (required) - the section  containing the settings for the RBB contorl of the light.
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed type: `string`.
+  * `type` (required) - color representation format. Allowed types: `RGB`, `HSV`, `RGBHSV`.
+
+```yaml
+light:
+  - platform: uyat
+    type: rgb
+    name: "RGB"
+    switch:
+      datapoint: 1
+      inverted: false
+    color:
+      datapoint: 102
+      type: "HSV"
+```
+
+### type: rgbw
+- `switch` (optional) - the section containing the settings for the binary control of the light (ON/OFF):
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+  * `inverted` (optional) - should the behavior of this switch be inverted (ie. switch off if the datapoint evaluates to `True`). The default is `False`.
+- `dimmmer` (required) - the section containing settings for the light dimming part of the light entity:
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+  * `min_value` (optional) - minimal numerical value the dimmer can be set to. The default is `0`.
+  * `max_value` (optional) - maximum numerical value the  dimmer can be set to. The default is `255`.
+  * `inverted` (optional) - should the light intensity value be inverted where highest number is the dimmest possible value. The default is `False`.
+  * `min_value_datapoint` (optional) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+- `color` (required) - the section  containing the settings for the RBB contorl of the light.
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed type: `string`.
+  * `type` (required) - color representation format. Allowed types: `RGB`, `HSV`, `RGBHSV`.
+- `color_interlock` (optional) - Prevent colors and white channel to light up at the same time. The default is `False`.
+- `gamma_correct` (optional) - manual gamma correction factor. The default is `1.0`.
+- `default_transition_length` (optional) - on and off transition length. The default is `0s`.
+
+```yaml
+light:
+  - platform: uyat
+    type: rgbw
+    name: "RGBW"
+    switch:
+      datapoint: 1
+      inverted: false
+    dimmer:
+      datapoint: 2
+      min_value: 1
+      max_value: 1000
+      inverted: false
+      min_value_datapoint: 2
+    color:
+      datapoint: 102
+      type: "HSV"
+    color_interlock: true
+```
+
+### type: rgbct
+- `switch` (optional) - the section containing the settings for the binary control of the light (ON/OFF):
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `bool`, `value`, `enum`. The default type is `bool`.
+  * `inverted` (optional) - should the behavior of this switch be inverted (ie. switch off if the datapoint evaluates to `True`). The default is `False`.
+- `dimmmer` (required) - the section containing settings for the light dimming part of the light entity:
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+  * `min_value` (optional) - minimal numerical value the dimmer can be set to. The default is `0`.
+  * `max_value` (optional) - maximum numerical value the  dimmer can be set to. The default is `255`.
+  * `inverted` (optional) - should the light intensity value be inverted where highest number is the dimmest possible value. The default is `False`.
+  * `min_value_datapoint` (optional) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+- `color` (required) - the section  containing the settings for the RBB contorl of the light.
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed type: `string`.
+  * `type` (required) - color representation format. Allowed types: `RGB`, `HSV`, `RGBHSV`.
+- `white_temperature` (required) - the section containing settings for the white color temperature.
+  * `datapoint` (required) - either [the short](#short-form) or [long form](#long-form). Allowed types: `detect`, `value`, `enum`. The default type is `value`.
+  * `min_value` (optional) - minimal numerical value the dimmer can be set to. The default is `0`.
+  * `max_value` (optional) - maximum numerical value the  dimmer can be set to. The default is `255`.
+  * `inverted` (optional) - should the light intensity value be inverted where highest number is the dimmest possible value. The default is `False`.
+  * `cold_white_color_temperature` (required) - the absolute max temperature value for cold white. Possible units are Kelvin (K) or Mireds(mireds).
+  * `warm_white_color_temperature` (required) - the absolute min temperature value for warm white. Possible units are Kelvin (K) or Mireds(mireds).
+- `color_interlock` (optional) - Prevent colors and white channel to light up at the same time. The default is `False`.
+- `gamma_correct` (optional) - manual gamma correction factor. The default is `1.0`.
+- `default_transition_length` (optional) - on and off transition length. The default is `0s`.
+
+```yaml
+light:
+  - platform: uyat
+    type: rgbct
+    name: "RGBCT"
+    switch:
+      datapoint: 1
+      inverted: false
+    dimmer:
+      datapoint: 2
+      min_value: 1
+      max_value: 1000
+      inverted: false
+      min_value_datapoint: 2
+    color:
+      datapoint: 102
+      type: "HSV"
+    white_temperature:
+      datapoint: 101
+      cold_white_color_temperature: 6500K
+      warm_white_color_temperature: 3000K
+    color_interlock: true
+```
 
 # Shoulders of the giant
 Even though I don't like the original tuya component, I still think the Esphome Team did a great job with it. I would never be able to write Uyat without it and I have learnt a great deal just from studying it.

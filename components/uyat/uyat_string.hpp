@@ -74,7 +74,7 @@ struct StringHelpers
       // Calculate maximum decoded size: every 4 base64 chars = 3 bytes
       size_t max_len = ((encoded_string.size() + 3) / 4) * 3;
       std::vector<uint8_t> ret(max_len);
-      size_t actual_len = ::esphome::base64_decode(reinterpret_cast<const uint8_t *>(encoded_string.data()), encoded_string.size(), ret.data(), max_len);
+      size_t actual_len = ::esphome::base64_decode(reinterpret_cast<const uint8_t *>(encoded_string.c_str()), encoded_string.length(), ret.data(), max_len);
       ret.resize(actual_len);
       return ret;
    }

@@ -155,30 +155,24 @@ private:
 
    StaticString to_raw_rgb(const Value& v) const
    {
-      StaticString buffer(6u, '0');
-      sprintf(buffer.data(), "%02X%02X%02X", int(v.r * 255), int(v.g * 255), int(v.b * 255));
-      return buffer;
+      return StringHelpers::sprintf("%02X%02X%02X", int(v.r * 255), int(v.g * 255), int(v.b * 255));
    }
 
    StaticString to_raw_hsv(const Value& v) const
    {
-      StaticString buffer(12u, '0');
       int hue;
       float saturation, value;
       rgb_to_hsv(v.r, v.g, v.b, hue, saturation, value);
-      sprintf(buffer.data(), "%04X%04X%04X", hue, int(saturation * 1000), int(value * 1000));
-      return buffer;
+      return StringHelpers::sprintf("%04X%04X%04X", hue, int(saturation * 1000), int(value * 1000));
    }
 
    StaticString to_raw_rgbhsv(const Value& v) const
    {
-      StaticString buffer(14u, '0');
       int hue;
       float saturation, value;
       rgb_to_hsv(v.r, v.g, v.b, hue, saturation, value);
-      sprintf(buffer.data(), "%02X%02X%02X%04X%02X%02X", int(v.r * 255), int(v.g * 255), int(v.b * 255), hue,
+      return StringHelpers::sprintf("%02X%02X%02X%04X%02X%02X", int(v.r * 255), int(v.g * 255), int(v.b * 255), hue,
                int(saturation * 255), int(value * 255));
-      return buffer;
    }
 
    std::optional<Value> decode_(const StaticString& raw_value) const

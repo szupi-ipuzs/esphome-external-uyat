@@ -137,7 +137,7 @@ struct DpText
          // fixme: all flavours of base64_encode() return std::string
          //        we can copy this method to uyat StringHelpers, but it's a bit too complex
          //        better to wait till helpers provide a version that works with plane char buffers
-         StaticString encoded = base64_encode(reinterpret_cast<const uint8_t*>(value.data()), value.size()).c_str();
+         StaticString encoded = base64_encode(reinterpret_cast<const uint8_t*>(value.c_str()), value.length()).c_str();
          if (encoded.empty())
          {
             ESP_LOGW(DpText::TAG, "Not setting invalid base64 value for %s", this->config_.to_string().c_str());

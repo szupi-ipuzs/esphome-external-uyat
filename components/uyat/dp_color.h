@@ -51,7 +51,7 @@ struct DpColor
       MatchingDatapoint matching_dp;
       const UyatColorType color_type;
 
-      String to_string() const
+      StaticString to_string() const
       {
          return StringHelpers::sprintf("%s, color_type: %s", matching_dp.to_string().c_str(), DpColor::color_type_to_string(color_type));
       }
@@ -153,16 +153,16 @@ struct DpColor
 
 private:
 
-   String to_raw_rgb(const Value& v) const
+   StaticString to_raw_rgb(const Value& v) const
    {
-      String buffer(6u, '0');
+      StaticString buffer(6u, '0');
       sprintf(buffer.data(), "%02X%02X%02X", int(v.r * 255), int(v.g * 255), int(v.b * 255));
       return buffer;
    }
 
-   String to_raw_hsv(const Value& v) const
+   StaticString to_raw_hsv(const Value& v) const
    {
-      String buffer(12u, '0');
+      StaticString buffer(12u, '0');
       int hue;
       float saturation, value;
       rgb_to_hsv(v.r, v.g, v.b, hue, saturation, value);
@@ -170,9 +170,9 @@ private:
       return buffer;
    }
 
-   String to_raw_rgbhsv(const Value& v) const
+   StaticString to_raw_rgbhsv(const Value& v) const
    {
-      String buffer(14u, '0');
+      StaticString buffer(14u, '0');
       int hue;
       float saturation, value;
       rgb_to_hsv(v.r, v.g, v.b, hue, saturation, value);
@@ -181,7 +181,7 @@ private:
       return buffer;
    }
 
-   std::optional<Value> decode_(const String& raw_value) const
+   std::optional<Value> decode_(const StaticString& raw_value) const
    {
       if (this->config_.color_type == UyatColorType::RGB)
       {
@@ -201,7 +201,7 @@ private:
       return std::nullopt;
    }
 
-   std::optional<Value> decode_as_rgb_(const String& raw_value) const
+   std::optional<Value> decode_as_rgb_(const StaticString& raw_value) const
    {
       const auto rgb_string = raw_value.substr(0, 6);
       const auto rgb = parse_hex<uint32_t>(rgb_string.c_str(), rgb_string.length());
@@ -215,7 +215,7 @@ private:
                    (*rgb & 0xff) / 255.0f};
    }
 
-   std::optional<Value> decode_as_hsv_(const String& raw_value) const
+   std::optional<Value> decode_as_hsv_(const StaticString& raw_value) const
    {
       const auto hue_string = raw_value.substr(0, 4);
       const auto hue = parse_hex<uint16_t>(hue_string.c_str(), hue_string.length());
@@ -233,7 +233,7 @@ private:
       return result;
    }
 
-   std::optional<Value> decode_as_rgbhsv_(const String& raw_value) const
+   std::optional<Value> decode_as_rgbhsv_(const StaticString& raw_value) const
    {
       return decode_as_rgb_(raw_value);
    }

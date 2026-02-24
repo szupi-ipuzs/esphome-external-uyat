@@ -20,7 +20,7 @@ struct DpNumber
       const float offset;
       const float multiplier;
 
-      String to_string() const
+      StaticString to_string() const
       {
          return StringHelpers::sprintf("%s, offset=%.2f, multiplier=%.2f", matching_dp.to_string().c_str(), offset, multiplier);
       }

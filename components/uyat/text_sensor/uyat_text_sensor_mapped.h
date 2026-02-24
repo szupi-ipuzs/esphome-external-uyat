@@ -15,14 +15,14 @@ class UyatTextSensorMapped : public text_sensor::TextSensor, public Component {
   static constexpr const char* TAG = "uyat.text_sensor_mapped";
 
   void on_value(const float);
-  String translate(const uint32_t number_value) const;
+  StaticString translate(const uint32_t number_value) const;
 
  public:
 
   struct Config
   {
     MatchingDatapoint matching_dp;
-    std::vector<std::pair<uint32_t, String>> mapping;
+    std::vector<std::pair<uint32_t, StaticString>> mapping;
   };
 
   explicit UyatTextSensorMapped(Uyat *parent, Config config);
@@ -32,7 +32,7 @@ class UyatTextSensorMapped : public text_sensor::TextSensor, public Component {
  protected:
   Uyat& parent_;
   DpNumber dp_number_;
-  const std::vector<std::pair<uint32_t, String>> mapping_;
+  const std::vector<std::pair<uint32_t, StaticString>> mapping_;
 };
 
 }  // namespace uyat

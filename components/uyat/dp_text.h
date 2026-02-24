@@ -38,14 +38,14 @@ struct DpText
 {
    static constexpr const char * TAG = "uyat.DpText";
 
-   using OnValueCallback = std::function<void(const String&)>;
+   using OnValueCallback = std::function<void(const StaticString&)>;
 
    struct Config
    {
       MatchingDatapoint matching_dp;
       const TextDataEncoding data_encoding;
 
-      const String to_string() const
+      const StaticString to_string() const
       {
          return StringHelpers::sprintf("%s %s", TextDataEncoding2String(this->data_encoding), this->matching_dp.to_string().c_str());
       }
@@ -70,7 +70,7 @@ struct DpText
                this->config_.matching_dp.types = {UyatDatapointType::RAW};
                ESP_LOGI(DpText::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
             }
-            this->last_received_value_ = String(dp_value->value.begin(), dp_value->value.end());
+            this->last_received_value_ = StaticString(dp_value->value.begin(), dp_value->value.end());
             this->last_received_value_ = this->decode_(this->last_received_value_);
             callback_(this->last_received_value_);
          }
@@ -93,12 +93,12 @@ struct DpText
       });
    }
 
-   String get_last_received_value() const
+   StaticString get_last_received_value() const
    {
       return last_received_value_;
    }
 
-   String get_last_set_value() const
+   StaticString get_last_set_value() const
    {
       return last_set_value_;
    }
@@ -108,7 +108,7 @@ struct DpText
       return config_;
    }
 
-   void set_value(const String& value)
+   void set_value(const StaticString& value)
    {
       if (this->handler_ == nullptr)
       {
@@ -137,7 +137,7 @@ struct DpText
          // fixme: all flavours of base64_encode() return std::string
          //        we can copy this method to uyat StringHelpers, but it's a bit too complex
          //        better to wait till helpers provide a version that works with plane char buffers
-         String encoded = base64_encode(reinterpret_cast<const uint8_t*>(value.data()), value.size()).c_str();
+         StaticString encoded = base64_encode(reinterpret_cast<const uint8_t*>(value.data()), value.size()).c_str();
          if (encoded.empty())
          {
             ESP_LOGW(DpText::TAG, "Not setting invalid base64 value for %s", this->config_.to_string().c_str());
@@ -180,7 +180,7 @@ struct DpText
          {
             to_set_dp = UyatDatapoint{
                this->config_.matching_dp.number,
-               StringDatapointValue{String(parsed.begin(), parsed.end())}
+               StringDatapointValue{StaticString(parsed.begin(), parsed.end())}
             };
          }
       }
@@ -221,7 +221,7 @@ struct DpText
 
 private:
 
-   String decode_(const String& input) const
+   StaticString decode_(const StaticString& input) const
    {
       if (input.empty())
       {
@@ -235,7 +235,7 @@ private:
          {
             return {};
          }
-         return String(decoded.begin(), decoded.end());
+         return StaticString(decoded.begin(), decoded.end());
       }
 
       if (this->config_.data_encoding == TextDataEncoding::AS_HEX)
@@ -250,8 +250,8 @@ private:
    OnValueCallback callback_;
 
    DatapointHandler* handler_{nullptr};
-   String last_received_value_;
-   String last_set_value_;
+   StaticString last_received_value_;
+   StaticString last_set_value_;
 };
 
 }

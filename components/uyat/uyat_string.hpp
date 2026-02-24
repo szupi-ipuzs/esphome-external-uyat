@@ -9,18 +9,18 @@ namespace esphome::uyat
 {
 
 static constexpr const std::size_t MAX_STRING_BUFFER_SIZE = 1024u * 5u;
-static constexpr const std::size_t MAX_STRING_BUFFER_CHUNKS = 500u;
+static constexpr const std::size_t MAX_STRING_BUFFER_SLOTS = 500u;
 
-struct StringConstructor
+struct StringMemoryPool
 {
-   StringConstructor(const std::size_t max_buffer_size, const std::size_t max_buffer_chunks):
+   StringMemoryPool(const std::size_t max_buffer_size, const std::size_t max_buffer_chunks):
    buffer_(max_buffer_size),
    allocator_(buffer_, max_buffer_chunks)
    {}
 
    static sma::StaticMemoryAllocator& get_sma()
    {
-      static StringConstructor instance(MAX_STRING_BUFFER_SIZE, MAX_STRING_BUFFER_CHUNKS);
+      static StringMemoryPool instance(MAX_STRING_BUFFER_SIZE, MAX_STRING_BUFFER_SLOTS);
       return instance.allocator_;
    }
 
@@ -30,13 +30,13 @@ private:
    sma::StaticMemoryAllocator allocator_;
 };
 
-using String = std::basic_string<char, std::char_traits<char>, sma::STLAllocator<char, StringConstructor>>;
+using StaticString = std::basic_string<char, std::char_traits<char>, sma::STLAllocator<char, StringMemoryPool>>;
 
 struct StringHelpers
 {
-   static String sprintf(const char *fmt, ...)
+   static StaticString sprintf(const char *fmt, ...)
    {
-      String str;
+      StaticString str;
       va_list args;
 
       va_start(args, fmt);
@@ -51,11 +51,11 @@ struct StringHelpers
       return str;
    }
 
-   static String format_hex_pretty(const uint8_t *data, size_t length, char separator = '.', bool show_length = true)
+   static StaticString format_hex_pretty(const uint8_t *data, size_t length, char separator = '.', bool show_length = true)
    {
       if (data == nullptr || length == 0)
          return "";
-      String ret;
+      StaticString ret;
       size_t hex_len = separator ? (length * 3 - 1) : (length * 2);
       ret.resize(hex_len);
       ::esphome::format_hex_pretty_to(&ret[0], hex_len + 1, data, length, separator);
@@ -64,12 +64,12 @@ struct StringHelpers
       return ret;
    }
 
-   static String format_hex_pretty(const std::vector<uint8_t> &data, char separator = '.', bool show_length = true)
+   static StaticString format_hex_pretty(const std::vector<uint8_t> &data, char separator = '.', bool show_length = true)
    {
       return StringHelpers::format_hex_pretty(data.data(), data.size(), separator, show_length);
    }
 
-   static std::vector<uint8_t> base64_decode(const String &encoded_string)
+   static std::vector<uint8_t> base64_decode(const StaticString &encoded_string)
    {
       // Calculate maximum decoded size: every 4 base64 chars = 3 bytes
       size_t max_len = ((encoded_string.size() + 3) / 4) * 3;

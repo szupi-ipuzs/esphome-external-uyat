@@ -23,7 +23,7 @@ struct DpDimmer
       const uint32_t max_value;
       const bool inverted;
 
-      String to_string() const
+      StaticString to_string() const
       {
          return StringHelpers::sprintf("%s, [%u, %u]%s", matching_dp.to_string().c_str(), min_value, max_value, inverted? " inverted":"");
       }

@@ -17,7 +17,7 @@ struct DpVAP
       uint32_t a;
       uint32_t p;
 
-      String to_string() const {
+      StaticString to_string() const {
          return StringHelpers::sprintf("V: %u, A: %u, P: %u", v, a, p);
       }
    };
@@ -27,7 +27,7 @@ struct DpVAP
    {
       MatchingDatapoint matching_dp;
 
-      String to_string() const
+      StaticString to_string() const
       {
          return this->matching_dp.to_string();
       }

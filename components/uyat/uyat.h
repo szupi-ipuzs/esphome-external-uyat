@@ -177,7 +177,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void report_wifi_connected_or_retry_(const uint32_t delay_ms);
   void report_cloud_connected_();
   void query_product_info_with_retries_();
-  String process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
+  StaticString process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
   void schedule_heartbeat_(const bool initial);
   void stop_heartbeats_();
 
@@ -185,7 +185,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void update_pairing_mode_sensor_();
 #endif
 
-  String report_ap_name_ = "smartlife";
+  StaticString report_ap_name_ = "smartlife";
 #ifdef USE_TIME
   void send_local_time_();
   time::RealTimeClock *time_id_{nullptr};
@@ -201,7 +201,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   int reset_pin_reported_ = -1;
   uint32_t last_command_timestamp_ = 0;
   uint32_t last_rx_char_timestamp_ = 0;
-  String product_ = "";
+  StaticString product_ = "";
   std::vector<UyatDatapointListener> listeners_;
   std::vector<UyatDatapoint> cached_datapoints_;
   std::deque<uint8_t> rx_message_;

@@ -240,7 +240,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       }
     }
     if (valid) {
-      this->product_ = String(buffer.begin() + offset, buffer.begin() + offset + len);
+      this->product_ = StaticString(buffer.begin() + offset, buffer.begin() + offset + len);
 #ifdef UYAT_DIAGNOSTICS_ENABLED
       if (this->product_text_sensor_)
       {
@@ -469,7 +469,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     }
     case UyatExtendedServicesCommandType::GET_MODULE_INFORMATION: {
       std::vector<uint8_t> response_payload;
-      String module_info_str;
+      StaticString module_info_str;
       response_payload.push_back(static_cast<uint8_t>(
                   UyatExtendedServicesCommandType::GET_MODULE_INFORMATION));
       if (len >= 2)
@@ -816,7 +816,7 @@ void Uyat::query_product_info_with_retries_()
     });
 }
 
-String Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len)
+StaticString Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len)
 {
   // By default, we return an empty string indicating failure
   bool want_ssid = false;
@@ -861,7 +861,7 @@ String Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, 
     return {};
   }
 
-  String module_info_str = "{";
+  StaticString module_info_str = "{";
 
   if (want_ssid)
   {

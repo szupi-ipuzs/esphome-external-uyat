@@ -20,7 +20,7 @@ struct DpBinarySensor
       const std::optional<uint8_t> bit_number;
       const bool inverted;
 
-      String to_string() const
+      StaticString to_string() const
       {
          return StringHelpers::sprintf("%s%s%s",
             inverted? "Inverted " : "",

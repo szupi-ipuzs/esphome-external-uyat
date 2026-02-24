@@ -19,7 +19,7 @@ struct DpSwitch
       MatchingDatapoint matching_dp;
       const bool inverted;
 
-      const String to_string() const
+      const StaticString to_string() const
       {
          return StringHelpers::sprintf("%s%s", this->inverted? "Inverted " : "", this->matching_dp.to_string().c_str());
       }

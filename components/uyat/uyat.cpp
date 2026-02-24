@@ -240,7 +240,11 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       }
     }
     if (valid) {
+<<<<<<< HEAD
       this->product_ = String(reinterpret_cast<const char *>(&buffer[offset]), len);
+=======
+      this->product_ = std::string(buffer.begin() + offset, buffer.begin() + offset + len);
+>>>>>>> origin/main
 #ifdef UYAT_DIAGNOSTICS_ENABLED
       if (this->product_text_sensor_)
       {
@@ -474,7 +478,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
                   UyatExtendedServicesCommandType::GET_MODULE_INFORMATION));
       if (len >= 2)
       {
-        module_info_str = process_get_module_information_(&buffer[1], len - 1);
+        module_info_str = process_get_module_information_(buffer, offset + 1, len - 1);
       }
 
       if (module_info_str.empty())
@@ -816,7 +820,7 @@ void Uyat::query_product_info_with_retries_()
     });
 }
 
-String Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
+String Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len)
 {
   // By default, we return an empty string indicating failure
   bool want_ssid = false;
@@ -828,7 +832,7 @@ String Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
     return {};
   }
 
-  if (buffer[0] == 0xFF) // special case: get all information
+  if (buffer[offset] == 0xFF) // special case: get all information
   {
     want_ssid = true;
     want_country_code = true;
@@ -838,7 +842,7 @@ String Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
   {
     for (size_t i = 0; i < len; i++)
     {
-      switch (buffer[i])
+      switch (buffer[offset + i])
       {
         case 0x01:
           want_ssid = true;
@@ -851,7 +855,7 @@ String Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
           break;
         default:
           ESP_LOGW(TAG, "Unknown GET_MODULE_INFORMATION request field 0x%02X",
-                   buffer[i]);
+                   buffer[offset + i]);
       }
     }
   }

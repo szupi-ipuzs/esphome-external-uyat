@@ -177,7 +177,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void report_wifi_connected_or_retry_(const uint32_t delay_ms);
   void report_cloud_connected_();
   void query_product_info_with_retries_();
-  String process_get_module_information_(const uint8_t *buffer, size_t len);
+  String process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
   void schedule_heartbeat_(const bool initial);
   void stop_heartbeats_();
 

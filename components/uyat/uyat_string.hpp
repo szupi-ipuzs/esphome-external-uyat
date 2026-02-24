@@ -8,8 +8,8 @@
 namespace esphome::uyat
 {
 
-static constexpr const std::size_t MAX_STRING_BUFFER_SIZE = 1024u * 10;
-static constexpr const std::size_t MAX_STRING_BUFFER_CHUNKS = 100u;
+static constexpr const std::size_t MAX_STRING_BUFFER_SIZE = 1024u * 5u;
+static constexpr const std::size_t MAX_STRING_BUFFER_CHUNKS = 500u;
 
 struct StringConstructor
 {

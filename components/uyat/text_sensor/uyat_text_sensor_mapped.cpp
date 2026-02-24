@@ -35,7 +35,7 @@ void UyatTextSensorMapped::on_value(const float value)
   const auto translated = translate(static_cast<uint32_t>(value));
   if (!translated.empty())
   {
-    this->publish_state(translated);
+    this->publish_state(translated.c_str());
   }
   else
   {

@@ -25,7 +25,7 @@ void UyatTextSensor::dump_config() {
 void UyatTextSensor::on_value(const String& value)
 {
   ESP_LOGV(UyatTextSensor::TAG, "MCU reported %s is: %s", get_name().c_str(), value.c_str());
-  this->publish_state(value);
+  this->publish_state(value.c_str());
 }
 
 }  // namespace uyat

@@ -5,19 +5,19 @@
 #include <vector>
 #include <algorithm>
 #include <optional>
+#include <span>
 
 namespace sma
 {
 
 struct StaticMemoryAllocator
 {
-   explicit StaticMemoryAllocator(uint8_t* buffer_ptr, const std::size_t buffer_size, const std::size_t max_chunks):
-   buffer_(buffer_ptr),
-   buffer_size_(buffer_size),
+   explicit StaticMemoryAllocator(std::span<uint8_t> buffer, const std::size_t max_chunks):
+   buffer_(buffer),
    occupied_chunks_(max_chunks),
    free_chunks_(max_chunks + 1u)
    {
-      free_chunks_[0] = Chunk{.used = true, .offset = 0, .size = buffer_size};
+      free_chunks_[0] = Chunk{.used = true, .offset = 0, .size = buffer.size()};
    }
 
    StaticMemoryAllocator(const StaticMemoryAllocator&) = delete;
@@ -95,7 +95,7 @@ struct StaticMemoryAllocator
 
    void free(uint8_t* ptr)
    {
-      if ((ptr < &buffer_[0]) || (ptr >= &buffer_[buffer_size_]))
+      if ((ptr < &buffer_[0]) || (ptr >= &buffer_[buffer_.size()]))
       {
          // buffer out of range
          return;
@@ -138,7 +138,7 @@ private:
 
    bool is_valid_chunk(const Chunk& chunk) const
    {
-      return (chunk.offset + chunk.size) <= buffer_size_;
+      return (chunk.offset + chunk.size) <= buffer_.size();
    }
 
    std::optional<std::size_t> find_empty_slot(const std::vector<Chunk>& chunks) const
@@ -248,8 +248,7 @@ private:
       }
    }
 
-   uint8_t* buffer_;
-   const std::size_t buffer_size_;
+   std::span<uint8_t> buffer_;
 
    // used memory chunks
    std::vector<Chunk> occupied_chunks_;

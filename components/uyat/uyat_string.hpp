@@ -15,7 +15,7 @@ struct StringConstructor
 {
    StringConstructor(const std::size_t max_buffer_size, const std::size_t max_buffer_chunks):
    buffer_(max_buffer_size),
-   allocator_(buffer_.data(), buffer_.size(), max_buffer_chunks)
+   allocator_(buffer_, max_buffer_chunks)
    {}
 
    static sma::StaticMemoryAllocator& get_sma()

@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "uyat_datapoint_types.h"
+#include "uyat_string.hpp"
 
 namespace esphome::uyat
 {
@@ -37,16 +38,16 @@ struct DpText
 {
    static constexpr const char * TAG = "uyat.DpText";
 
-   using OnValueCallback = std::function<void(const std::string&)>;
+   using OnValueCallback = std::function<void(const String&)>;
 
    struct Config
    {
       MatchingDatapoint matching_dp;
       const TextDataEncoding data_encoding;
 
-      const std::string to_string() const
+      const String to_string() const
       {
-         return str_sprintf("%s %s", TextDataEncoding2String(this->data_encoding), this->matching_dp.to_string().c_str());
+         return StringHelpers::sprintf("%s %s", TextDataEncoding2String(this->data_encoding), this->matching_dp.to_string().c_str());
       }
    };
 
@@ -69,7 +70,7 @@ struct DpText
                this->config_.matching_dp.types = {UyatDatapointType::RAW};
                ESP_LOGI(DpText::TAG, "Resolved %s", this->config_.matching_dp.to_string().c_str());
             }
-            this->last_received_value_ = std::string(dp_value->value.begin(), dp_value->value.end());
+            this->last_received_value_ = String(dp_value->value.begin(), dp_value->value.end());
             this->last_received_value_ = this->decode_(this->last_received_value_);
             callback_(this->last_received_value_);
          }
@@ -92,12 +93,12 @@ struct DpText
       });
    }
 
-   std::string get_last_received_value() const
+   String get_last_received_value() const
    {
       return last_received_value_;
    }
 
-   std::string get_last_set_value() const
+   String get_last_set_value() const
    {
       return last_set_value_;
    }
@@ -107,7 +108,7 @@ struct DpText
       return config_;
    }
 
-   void set_value(const std::string& value)
+   void set_value(const String& value)
    {
       if (this->handler_ == nullptr)
       {
@@ -133,7 +134,10 @@ struct DpText
       std::optional<UyatDatapoint> to_set_dp;
       if (this->config_.data_encoding == TextDataEncoding::AS_BASE64)
       {
-         std::string encoded = base64_encode(reinterpret_cast<const uint8_t*>(value.data()), value.size());
+         // fixme: all flavours of base64_encode() return std::string
+         //        we can copy this method to uyat StringHelpers, but it's a bit too complex
+         //        better to wait till helpers provide a version that works with plane char buffers
+         String encoded = base64_encode(reinterpret_cast<const uint8_t*>(value.data()), value.size()).c_str();
          if (encoded.empty())
          {
             ESP_LOGW(DpText::TAG, "Not setting invalid base64 value for %s", this->config_.to_string().c_str());
@@ -176,7 +180,7 @@ struct DpText
          {
             to_set_dp = UyatDatapoint{
                this->config_.matching_dp.number,
-               StringDatapointValue{std::string(parsed.begin(), parsed.end())}
+               StringDatapointValue{String(parsed.begin(), parsed.end())}
             };
          }
       }
@@ -217,7 +221,7 @@ struct DpText
 
 private:
 
-   std::string decode_(const std::string& input) const
+   String decode_(const String& input) const
    {
       if (input.empty())
       {
@@ -226,17 +230,17 @@ private:
 
       if (this->config_.data_encoding == TextDataEncoding::AS_BASE64)
       {
-         const auto decoded = base64_decode(input);
+         const auto decoded = StringHelpers::base64_decode(input);
          if (decoded.empty())
          {
             return {};
          }
-         return std::string(decoded.begin(), decoded.end());
+         return String(decoded.begin(), decoded.end());
       }
 
       if (this->config_.data_encoding == TextDataEncoding::AS_HEX)
       {
-         return format_hex_pretty(input.data(), input.size(), 0);
+         return StringHelpers::format_hex_pretty(reinterpret_cast<const uint8_t*>(input.c_str()), input.length(), 0);
       }
 
       return input;
@@ -246,8 +250,8 @@ private:
    OnValueCallback callback_;
 
    DatapointHandler* handler_{nullptr};
-   std::string last_received_value_;
-   std::string last_set_value_;
+   String last_received_value_;
+   String last_set_value_;
 };
 
 }

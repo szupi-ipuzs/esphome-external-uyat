@@ -14,7 +14,7 @@ class UyatTextSensor : public text_sensor::TextSensor, public Component {
 
   static constexpr const char* TAG = "uyat.text_sensor";
 
-  void on_value(const std::string&);
+  void on_value(const String&);
 
  public:
 

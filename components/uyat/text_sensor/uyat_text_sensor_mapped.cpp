@@ -43,7 +43,7 @@ void UyatTextSensorMapped::on_value(const float value)
   }
 }
 
-std::string UyatTextSensorMapped::translate(const uint32_t number_value) const
+String UyatTextSensorMapped::translate(const uint32_t number_value) const
 {
   auto it = std::find_if(this->mapping_.cbegin(), this->mapping_.cend(), [number_value](const auto& v){ return v.first == number_value; });
   if (it == this->mapping_.cend()) {

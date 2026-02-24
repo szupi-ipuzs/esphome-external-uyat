@@ -2,6 +2,7 @@
 
 #include "esphome/core/helpers.h"
 #include "uyat_datapoint_types.h"
+#include "uyat_string.hpp"
 
 #include <functional>
 
@@ -50,9 +51,9 @@ struct DpColor
       MatchingDatapoint matching_dp;
       const UyatColorType color_type;
 
-      std::string to_string() const
+      String to_string() const
       {
-         return str_sprintf("%s, color_type: %s", matching_dp.to_string().c_str(), DpColor::color_type_to_string(color_type));
+         return StringHelpers::sprintf("%s, color_type: %s", matching_dp.to_string().c_str(), DpColor::color_type_to_string(color_type));
       }
    };
 
@@ -152,16 +153,16 @@ struct DpColor
 
 private:
 
-   std::string to_raw_rgb(const Value& v) const
+   String to_raw_rgb(const Value& v) const
    {
-      std::string buffer(6u, '0');
+      String buffer(6u, '0');
       sprintf(buffer.data(), "%02X%02X%02X", int(v.r * 255), int(v.g * 255), int(v.b * 255));
       return buffer;
    }
 
-   std::string to_raw_hsv(const Value& v) const
+   String to_raw_hsv(const Value& v) const
    {
-      std::string buffer(12u, '0');
+      String buffer(12u, '0');
       int hue;
       float saturation, value;
       rgb_to_hsv(v.r, v.g, v.b, hue, saturation, value);
@@ -169,9 +170,9 @@ private:
       return buffer;
    }
 
-   std::string to_raw_rgbhsv(const Value& v) const
+   String to_raw_rgbhsv(const Value& v) const
    {
-      std::string buffer(14u, '0');
+      String buffer(14u, '0');
       int hue;
       float saturation, value;
       rgb_to_hsv(v.r, v.g, v.b, hue, saturation, value);
@@ -180,7 +181,7 @@ private:
       return buffer;
    }
 
-   std::optional<Value> decode_(const std::string& raw_value) const
+   std::optional<Value> decode_(const String& raw_value) const
    {
       if (this->config_.color_type == UyatColorType::RGB)
       {
@@ -200,9 +201,10 @@ private:
       return std::nullopt;
    }
 
-   std::optional<Value> decode_as_rgb_(const std::string& raw_value) const
+   std::optional<Value> decode_as_rgb_(const String& raw_value) const
    {
-      const auto rgb = parse_hex<uint32_t>(raw_value.substr(0, 6));
+      const auto rgb_string = raw_value.substr(0, 6);
+      const auto rgb = parse_hex<uint32_t>(rgb_string.c_str(), rgb_string.length());
       if (!rgb.has_value())
       {
          return std::nullopt;
@@ -213,11 +215,14 @@ private:
                    (*rgb & 0xff) / 255.0f};
    }
 
-   std::optional<Value> decode_as_hsv_(const std::string& raw_value) const
+   std::optional<Value> decode_as_hsv_(const String& raw_value) const
    {
-      const auto hue = parse_hex<uint16_t>(raw_value.substr(0, 4));
-      const auto saturation = parse_hex<uint16_t>(raw_value.substr(4, 4));
-      const auto value = parse_hex<uint16_t>(raw_value.substr(8, 4));
+      const auto hue_string = raw_value.substr(0, 4);
+      const auto hue = parse_hex<uint16_t>(hue_string.c_str(), hue_string.length());
+      const auto sat_string = raw_value.substr(4, 4);
+      const auto saturation = parse_hex<uint16_t>(sat_string.c_str(), sat_string.length());
+      const auto val_string = raw_value.substr(8, 4);
+      const auto value = parse_hex<uint16_t>(val_string.c_str(), val_string.length());
       if (!hue.has_value() || !saturation.has_value() || !value.has_value())
       {
          return std::nullopt;
@@ -228,7 +233,7 @@ private:
       return result;
    }
 
-   std::optional<Value> decode_as_rgbhsv_(const std::string& raw_value) const
+   std::optional<Value> decode_as_rgbhsv_(const String& raw_value) const
    {
       return decode_as_rgb_(raw_value);
    }

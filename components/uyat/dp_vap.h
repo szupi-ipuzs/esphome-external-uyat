@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "uyat_datapoint_types.h"
+#include "uyat_string.hpp"
 
 namespace esphome::uyat
 {
@@ -16,8 +17,8 @@ struct DpVAP
       uint32_t a;
       uint32_t p;
 
-      std::string to_string() const {
-         return str_sprintf("V: %u, A: %u, P: %u", v, a, p);
+      String to_string() const {
+         return StringHelpers::sprintf("V: %u, A: %u, P: %u", v, a, p);
       }
    };
    using OnValueCallback = std::function<void(const VAPValue&)>;
@@ -26,7 +27,7 @@ struct DpVAP
    {
       MatchingDatapoint matching_dp;
 
-      std::string to_string() const
+      String to_string() const
       {
          return this->matching_dp.to_string();
       }

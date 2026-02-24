@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "uyat_datapoint_types.h"
+#include "uyat_string.hpp"
 
 namespace esphome::uyat
 {
@@ -18,9 +19,9 @@ struct DpSwitch
       MatchingDatapoint matching_dp;
       const bool inverted;
 
-      const std::string to_string() const
+      const String to_string() const
       {
-         return str_sprintf("%s%s", this->inverted? "Inverted " : "", this->matching_dp.to_string().c_str());
+         return StringHelpers::sprintf("%s%s", this->inverted? "Inverted " : "", this->matching_dp.to_string().c_str());
       }
    };
 

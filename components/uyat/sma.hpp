@@ -1,0 +1,258 @@
+#pragma once
+
+#include <cstdint>
+#include <functional>
+#include <vector>
+#include <optional>
+#include <algorithm>
+
+namespace sma
+{
+
+struct StaticMemoryAllocator
+{
+   explicit StaticMemoryAllocator(uint8_t* buffer_ptr, const std::size_t buffer_size, const std::size_t max_chunks):
+   buffer_(buffer_ptr),
+   buffer_size_(buffer_size),
+   occupied_chunks_(max_chunks),
+   free_chunks_(max_chunks + 1u)
+   {
+      free_chunks_[0].emplace(Chunk{.offset = 0, .size = buffer_size});
+   }
+
+   StaticMemoryAllocator(const StaticMemoryAllocator&) = delete;
+   StaticMemoryAllocator& operator=(const StaticMemoryAllocator&) = delete;
+
+   StaticMemoryAllocator(StaticMemoryAllocator&&) = default;
+   StaticMemoryAllocator& operator=(StaticMemoryAllocator&&) = default;
+
+   std::size_t max_size() const
+   {
+      std::size_t result = 0u;
+
+      for (auto & chunk: free_chunks_)
+      {
+         if ((chunk) && (chunk->size > result))
+         {
+            result = chunk->size;
+         }
+      }
+
+      return result;
+   }
+
+   std::size_t total_occupied() const
+   {
+      std::size_t result = 0u;
+      for (auto & chunk: occupied_chunks_)
+      {
+         if (chunk)
+         {
+            result += chunk->size;
+         }
+      }
+      return result;
+   }
+
+   std::size_t total_free() const
+   {
+      std::size_t result = 0u;
+      for (auto & chunk: free_chunks_)
+      {
+         if (chunk)
+         {
+            result += chunk->size;
+         }
+      }
+      return result;
+   }
+
+   uint8_t* allocate(const std::size_t size)
+   {
+      auto new_slot = find_empty_slot(occupied_chunks_);
+      if (!new_slot)
+      {
+         return nullptr;
+      }
+
+      auto selected_free_chunk_index = select_free_chunk_index(size);
+      if (!selected_free_chunk_index)
+      {
+         return nullptr;
+      }
+
+      auto & selected_free_chunk = free_chunks_[*selected_free_chunk_index];
+      auto & occupied_chunk = occupied_chunks_[*new_slot];
+      occupied_chunk.emplace(Chunk{.offset = selected_free_chunk->offset, .size = size});
+      selected_free_chunk->offset += size;
+      selected_free_chunk->size -= size;
+      if (selected_free_chunk->size == 0)
+      {
+         selected_free_chunk.reset();
+      }
+      return &buffer_[occupied_chunk->offset];
+   }
+
+   void free(uint8_t* ptr)
+   {
+      if ((ptr < &buffer_[0]) || (ptr >= &buffer_[buffer_size_]))
+      {
+         // buffer out of range
+         return;
+      }
+      // find chunk by pointer
+      // todo: binary search should be faster over bigger number of chunks (only sorted!)
+      auto occupied_idx = find_occupied_chunk_by_ptr(ptr);
+      if (!occupied_idx)
+      {
+         return;
+      }
+
+      // move to the free slots
+      auto new_slot = find_empty_slot(free_chunks_);
+      free_chunks_[*new_slot] = std::move(occupied_chunks_[*occupied_idx]);
+      occupied_chunks_[*occupied_idx].reset();
+
+      // merge free slots if needed
+      merge_free_slots();
+   }
+
+private:
+
+   struct Chunk
+   {
+      std::size_t offset;
+      std::size_t size;
+   };
+
+   bool is_chunk_buffer(const std::optional<Chunk>& chunk, const uint8_t* ptr) const
+   {
+      if (!chunk)
+      {
+         return false;
+      }
+
+      return (&buffer_[chunk->offset] == ptr);
+   }
+
+   bool is_valid_chunk(const Chunk& chunk) const
+   {
+      return (chunk.offset + chunk.size) <= buffer_size_;
+   }
+
+   std::optional<std::size_t> find_empty_slot(const std::vector<std::optional<Chunk>>& chunks) const
+   {
+      for (std::size_t idx = 0; idx < chunks.size(); ++idx)
+      {
+         if (!chunks[idx])
+         {
+            return idx;
+         }
+      }
+
+      return std::nullopt;
+   }
+
+   bool chunks_overlap(const Chunk& chunk1, const Chunk& chunk2) const
+   {
+      if ((chunk2.offset >= chunk1.offset) && (chunk2.offset < (chunk1.offset + chunk1.size)))
+      {
+         return true;
+      }
+      if ((chunk1.offset >= chunk2.offset) && (chunk1.offset < (chunk2.offset + chunk2.size)))
+      {
+         return true;
+      }
+      if ((chunk1.offset == chunk2.offset) && (chunk1.size == chunk2.size))
+      {
+         return true;
+      }
+      return false;
+   }
+
+   std::optional<std::size_t> select_free_chunk_index(const std::size_t size) const
+   {
+      std::optional<std::size_t> result;
+      for (std::size_t idx = 0; idx < free_chunks_.size(); ++idx)
+      {
+         auto & chunk = free_chunks_[idx];
+         if ((chunk) && (chunk->size >= size))
+         {
+            if (chunk->size == size)
+            {
+               return idx;
+            }
+            if ((!result) || (chunk->size < free_chunks_[*result]->size))
+            {
+               result = idx;
+            }
+         }
+      }
+
+      return result;
+   }
+
+   std::optional<std::size_t> find_occupied_chunk_by_ptr(const uint8_t* ptr) const
+   {
+      for (std::size_t idx = 0; idx < occupied_chunks_.size(); ++idx)
+      {
+         auto & chunk = occupied_chunks_[idx];
+         if (is_chunk_buffer(chunk, ptr))
+         {
+            return idx;
+         }
+      }
+      return std::nullopt;
+   }
+
+   void merge_free_slots()
+   {
+      // sort first
+      std::sort(free_chunks_.begin(), free_chunks_.end(), [](const auto& lhs, const auto& rhs){
+         if (!lhs)
+         {
+            return false;
+         }
+
+         if (!rhs)
+         {
+            return true;
+         }
+
+         return lhs->offset < rhs->offset;
+      });
+
+      std::size_t current_idx = 0u;
+      while (current_idx < free_chunks_.size())
+      {
+         auto & current = free_chunks_[current_idx];
+         if (current)
+         {
+            std::size_t next_idx = current_idx + 1u;
+            while (next_idx < free_chunks_.size())
+            {
+               auto & next = free_chunks_[next_idx];
+               if (next)
+               {
+                  if (next->offset == (current->offset + current->size))
+                  {
+                     current->size += next->size;
+                     next = std::nullopt;
+                  }
+               }
+               ++next_idx;
+            }
+         }
+         ++current_idx;
+      }
+   }
+
+   uint8_t* buffer_;
+   const std::size_t buffer_size_;
+
+   // used memory chunks
+   std::vector<std::optional<Chunk>> occupied_chunks_;
+   std::vector<std::optional<Chunk>> free_chunks_;
+};
+
+}

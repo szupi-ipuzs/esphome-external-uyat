@@ -52,20 +52,20 @@ void Uyat::setup() {
 
       if (this->unknown_commands_text_sensor_)
       {
-        const auto cmd_ids = format_hex_pretty(this->unknown_commands_set_, ' ', false);
-        this->unknown_commands_text_sensor_->publish_state(cmd_ids);
+        const auto cmd_ids = StringHelpers::format_hex_pretty(this->unknown_commands_set_, ' ', false);
+        this->unknown_commands_text_sensor_->publish_state(cmd_ids.c_str());
       }
 
       if (this->unknown_extended_commands_text_sensor_)
       {
-        const auto cmd_ids = format_hex_pretty(this->unknown_extended_commands_set_, ' ', false);
-        this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids);
+        const auto cmd_ids = StringHelpers::format_hex_pretty(this->unknown_extended_commands_set_, ' ', false);
+        this->unknown_extended_commands_text_sensor_->publish_state(cmd_ids.c_str());
       }
 
       if (this->unhandled_datapoints_text_sensor_)
       {
-        const auto dp_ids = format_hex_pretty(this->unhandled_datapoints_set_, ' ', false);
-        this->unhandled_datapoints_text_sensor_->publish_state(dp_ids);
+        const auto dp_ids = StringHelpers::format_hex_pretty(this->unhandled_datapoints_set_, ' ', false);
+        this->unhandled_datapoints_text_sensor_->publish_state(dp_ids.c_str());
       }
 
     });
@@ -240,11 +240,11 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       }
     }
     if (valid) {
-      this->product_ = std::string(reinterpret_cast<const char *>(&buffer[offset]), len);
+      this->product_ = String(reinterpret_cast<const char *>(&buffer[offset]), len);
 #ifdef UYAT_DIAGNOSTICS_ENABLED
       if (this->product_text_sensor_)
       {
-        this->product_text_sensor_->publish_state(this->product_);
+        this->product_text_sensor_->publish_state(this->product_.c_str());
       }
 #endif
     } else {
@@ -443,7 +443,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
         UyatCommand{.cmd = UyatCommandType::GET_MAC_ADDRESS,
                     .payload = mac});
     ESP_LOGV(TAG, "MAC address requested, reported as %s",
-              format_hex_pretty(mac).c_str());
+              StringHelpers::format_hex_pretty(mac).c_str());
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
@@ -469,7 +469,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     }
     case UyatExtendedServicesCommandType::GET_MODULE_INFORMATION: {
       std::vector<uint8_t> response_payload;
-      std::string module_info_str;
+      String module_info_str;
       response_payload.push_back(static_cast<uint8_t>(
                   UyatExtendedServicesCommandType::GET_MODULE_INFORMATION));
       if (len >= 2)
@@ -599,7 +599,7 @@ void Uyat::send_raw_command_(UyatCommand command) {
 
   ESP_LOGV(TAG, "Sending Uyat: CMD=0x%02X VERSION=%u DATA=[%s] INIT_STATE=%u",
            static_cast<uint8_t>(command.cmd), version,
-           format_hex_pretty(command.payload).c_str(),
+           StringHelpers::format_hex_pretty(command.payload).c_str(),
            static_cast<uint8_t>(this->init_state_));
 
   this->write_array(
@@ -816,7 +816,7 @@ void Uyat::query_product_info_with_retries_()
     });
 }
 
-std::string Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
+String Uyat::process_get_module_information_(const uint8_t *buffer, size_t len)
 {
   // By default, we return an empty string indicating failure
   bool want_ssid = false;
@@ -861,7 +861,7 @@ std::string Uyat::process_get_module_information_(const uint8_t *buffer, size_t 
     return {};
   }
 
-  std::string module_info_str = "{";
+  String module_info_str = "{";
 
   if (want_ssid)
   {

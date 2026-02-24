@@ -474,7 +474,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
                   UyatExtendedServicesCommandType::GET_MODULE_INFORMATION));
       if (len >= 2)
       {
-        module_info_str = process_get_module_information_(&buffer[1], len - 1);
+        module_info_str = process_get_module_information_(&buffer[offset + 1], len - 1);
       }
 
       if (module_info_str.empty())

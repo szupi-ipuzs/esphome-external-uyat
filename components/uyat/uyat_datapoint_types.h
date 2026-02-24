@@ -337,12 +337,7 @@ struct UyatDatapoint {
 
     if (dp_type == static_cast<uint8_t>(UyatDatapointType::RAW))
     {
-      std::vector<uint8_t> payload;
-      payload.reserve(payload_size);
-      for (size_t i = 0; i < payload_size; ++i) {
-        payload.push_back(raw_data[payload_offset + i]);
-      }
-      return UyatDatapoint{dp_number, RawDatapointValue{std::move(payload)}};
+      return UyatDatapoint{dp_number, RawDatapointValue{std::vector<uint8_t>(raw_data.begin() + payload_offset, raw_data.begin() + payload_offset + payload_size)}};
     }
     if (dp_type == static_cast<uint8_t>(UyatDatapointType::BOOLEAN))
     {

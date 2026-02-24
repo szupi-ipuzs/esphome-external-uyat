@@ -240,11 +240,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       }
     }
     if (valid) {
-<<<<<<< HEAD
-      this->product_ = String(reinterpret_cast<const char *>(&buffer[offset]), len);
-=======
-      this->product_ = std::string(buffer.begin() + offset, buffer.begin() + offset + len);
->>>>>>> origin/main
+      this->product_ = String(buffer.begin() + offset, buffer.begin() + offset + len);
 #ifdef UYAT_DIAGNOSTICS_ENABLED
       if (this->product_text_sensor_)
       {

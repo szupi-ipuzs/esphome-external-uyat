@@ -27,6 +27,7 @@ CONF_DATAPOINT = "datapoint"
 CONF_DATAPOINT_TYPE = "datapoint_type"
 CONF_STATUS_PIN = "status_pin"
 CONF_DIAGNOSTICS = "diagnostics"
+CONF_SMA_STATS = "sma_stats"
 CONF_NUM_GARBAGE_BYTES = "num_garbage_bytes"
 CONF_UNKNOWN_COMMANDS = "unknown_commands"
 CONF_UNKNOWN_EXTENDED_COMMANDS = "unknown_extended_commands"
@@ -155,6 +156,7 @@ def assign_declare_id(value):
 
 UYAT_DIAGNOSTIC_SENSORS_SCHEMA = cv.Schema(
     {
+        cv.Optional(CONF_SMA_STATS, default=False): cv.boolean,
         cv.Optional(CONF_PRODUCT): esphome_text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
         ),
@@ -232,6 +234,8 @@ async def to_code(config):
         )
     if diagnostics_config := config.get(CONF_DIAGNOSTICS):
         cg.add_define("UYAT_DIAGNOSTICS_ENABLED")
+        if diagnostics_config[CONF_SMA_STATS]:
+            cg.add_define("SMA_ENABLE_STATS")
         if CONF_PRODUCT in diagnostics_config:
             tsens = await esphome_text_sensor.new_text_sensor(
                 diagnostics_config[CONF_PRODUCT]

@@ -12,13 +12,15 @@ namespace sma
 
 struct StaticMemoryAllocator
 {
+#ifdef SMA_ENABLE_STATS
    struct Stats
    {
       std::size_t peak_allocated_size = 0;
       std::size_t peak_occupied_free_slots = 0;
       std::size_t peak_occupied_used_slots = 0;
-      std::size_t smallest_max_chunk = 0;
+      float fragmentation_index = 0;
    };
+#endif
 
    explicit StaticMemoryAllocator(std::span<uint8_t> buffer, const std::size_t max_slots):
    buffer_(buffer),
@@ -34,10 +36,12 @@ struct StaticMemoryAllocator
    StaticMemoryAllocator(StaticMemoryAllocator&&) = default;
    StaticMemoryAllocator& operator=(StaticMemoryAllocator&&) = default;
 
+#ifdef SMA_ENABLE_STATS
    const Stats& get_stats() const
    {
       return stats_;
    }
+#endif
 
    std::size_t max_size() const
    {
@@ -264,6 +268,7 @@ private:
       }
    }
 
+#ifdef SMA_ENABLE_STATS
    std::size_t get_total_used_slots(const std::vector<Slot>& slots) const
    {
       std::size_t result = 0;
@@ -306,13 +311,18 @@ private:
       }
 
       {
-         const auto max_chunk = max_size();
-         if ((0u == stats_.smallest_max_chunk) || (stats_.smallest_max_chunk > max_chunk))
+         const auto free_size = total_free();
+         if (free_size > 0)
          {
-            stats_.smallest_max_chunk = max_chunk;
+            stats_.fragmentation_index = static_cast<float>(max_size()) / free_size;
          }
       }
    }
+#else
+
+   void update_stats(){}
+
+#endif
 
    std::span<uint8_t> buffer_;
 
@@ -320,7 +330,9 @@ private:
    std::vector<Slot> occupied_slots_;
    std::vector<Slot> free_slots_;
 
+#ifdef SMA_ENABLE_STATS
    Stats stats_{};
+#endif
 };
 
 }

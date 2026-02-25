@@ -40,13 +40,24 @@ void Uyat::setup() {
     this->status_pin_->digital_write(false);
   }
 
-  // this->set_interval("string_stats", 5000, [this] {
-  //   const auto stats = StringMemoryPool::get_sma().get_stats();
-  //   ESP_LOGW(TAG, "peak_allocated_size: %zu", stats.peak_allocated_size);
-  //   ESP_LOGW(TAG, "peak_occupied_free_slots: %zu", stats.peak_occupied_free_slots);
-  //   ESP_LOGW(TAG, "peak_occupied_used_slots: %zu", stats.peak_occupied_used_slots);
-  //   ESP_LOGW(TAG, "smallest_max_chunk: %zu", stats.smallest_max_chunk);
-  // });
+#ifdef SMA_ENABLE_STATS
+  this->set_interval("string_stats", 5000, [this] {
+      {
+        const auto stats = StringMemoryPool::get_sma().get_stats();
+        ESP_LOGW(TAG, "strings: peak_allocated_size: %zu", stats.peak_allocated_size);
+        ESP_LOGW(TAG, "strings: peak_occupied_free_slots: %zu", stats.peak_occupied_free_slots);
+        ESP_LOGW(TAG, "strings: peak_occupied_used_slots: %zu", stats.peak_occupied_used_slots);
+        ESP_LOGW(TAG, "strings: fragmentation_index: %.2f", stats.fragmentation_index);
+      }
+      {
+        const auto stats = DequeMemoryPool::get_sma().get_stats();
+        ESP_LOGW(TAG, "deque: peak_allocated_size: %zu", stats.peak_allocated_size);
+        ESP_LOGW(TAG, "deque: peak_occupied_free_slots: %zu", stats.peak_occupied_free_slots);
+        ESP_LOGW(TAG, "deque: peak_occupied_used_slots: %zu", stats.peak_occupied_used_slots);
+        ESP_LOGW(TAG, "deque: fragmentation_index: %.2f", stats.fragmentation_index);
+      }
+  });
+#endif
 
 #ifdef UYAT_DIAGNOSTICS_ENABLED
   if ((this->num_garbage_bytes_sensor_) || (this->unknown_commands_text_sensor_) ||

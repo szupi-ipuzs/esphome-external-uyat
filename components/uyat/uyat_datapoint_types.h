@@ -345,7 +345,7 @@ struct UyatDatapoint {
       {
         return {};
       }
-      return UyatDatapoint{dp_number, BoolDatapointValue{raw_data.byte_at(0) != 0x00}};
+      return UyatDatapoint{dp_number, BoolDatapointValue{payload.byte_at(0) != 0x00}};
     }
     if (dp_type == static_cast<uint8_t>(UyatDatapointType::INTEGER))
     {
@@ -354,15 +354,15 @@ struct UyatDatapoint {
         return {};
       }
       return UyatDatapoint{dp_number,
-                           UIntDatapointValue{encode_uint32(raw_data.byte_at(0), raw_data.byte_at(1u),
-                                                           raw_data.byte_at(2u), raw_data.byte_at(3u))}};
+                           UIntDatapointValue{encode_uint32(payload.byte_at(0), payload.byte_at(1u),
+                                                           payload.byte_at(2u), payload.byte_at(3u))}};
     }
     if (dp_type == static_cast<uint8_t>(UyatDatapointType::STRING))
     {
       StaticString payload_str;
       payload_str.reserve(payload.size_);
       for (size_t i = 0; i < payload.size_; ++i) {
-        payload_str.push_back(static_cast<char>(raw_data.byte_at(i)));
+        payload_str.push_back(static_cast<char>(payload.byte_at(i)));
       }
       return UyatDatapoint{dp_number, StringDatapointValue{std::move(payload_str)}};
     }
@@ -372,24 +372,24 @@ struct UyatDatapoint {
       {
         return {};
       }
-      return UyatDatapoint{dp_number, EnumDatapointValue{raw_data.byte_at(0)}};
+      return UyatDatapoint{dp_number, EnumDatapointValue{payload.byte_at(0)}};
     }
     if (dp_type == static_cast<uint8_t>(UyatDatapointType::BITMAP))
     {
       if (payload.size_ == 1u)
       {
-        return UyatDatapoint{dp_number, BitmapDatapointValue{raw_data.byte_at(0)}};
+        return UyatDatapoint{dp_number, BitmapDatapointValue{payload.byte_at(0)}};
       }
       if (payload.size_ == 2u)
       {
         return UyatDatapoint{dp_number,
-                             BitmapDatapointValue{encode_uint16(raw_data.byte_at(0), raw_data.byte_at(1u))}};
+                             BitmapDatapointValue{encode_uint16(payload.byte_at(0), payload.byte_at(1u))}};
       }
       if (payload.size_ == 4u)
       {
         return UyatDatapoint{dp_number,
-                             BitmapDatapointValue{encode_uint32(raw_data.byte_at(0), raw_data.byte_at(1u),
-                                                               raw_data.byte_at(2u), raw_data.byte_at(3u))}};
+                             BitmapDatapointValue{encode_uint32(payload.byte_at(0), payload.byte_at(1u),
+                                                               payload.byte_at(2u), payload.byte_at(3u))}};
       }
     }
 

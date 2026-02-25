@@ -218,10 +218,6 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   std::vector<uint8_t> unknown_extended_commands_set_;
   std::vector<uint8_t> unhandled_datapoints_set_;
 #endif
- private:
-  inline uint8_t byte_at_(const std::deque<uint8_t> &buffer, size_t offset, size_t idx) const {
-    return buffer[offset + idx];
-  }
 };
 
 template<typename... Ts> class FactoryResetAction : public Action<Ts...> {

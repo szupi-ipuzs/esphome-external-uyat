@@ -8,7 +8,7 @@ namespace esphome::uyat
 {
 
 static constexpr const std::size_t MAX_DEQUE_BUFFER_SIZE = 1024u * 2u;
-static constexpr const std::size_t MAX_DEQUE_BUFFER_SLOTS = 200;
+static constexpr const std::size_t MAX_DEQUE_BUFFER_SLOTS = 10;
 
 struct DequeMemoryPool
 {

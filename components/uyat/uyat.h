@@ -11,6 +11,7 @@
 #include "esphome/components/uart/uart.h"
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/text_sensor/text_sensor.h"
+#include "uyat_string.hpp"
 
 #ifdef USE_TIME
 #include "esphome/components/time/real_time_clock.h"
@@ -109,7 +110,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void set_status_pin(InternalGPIOPin *status_pin) { this->status_pin_ = status_pin; }
   void send_generic_command(const UyatCommand &command) { send_command_(command); }
   UyatInitState get_init_state();
-  void set_report_ap_name(const std::string& ap_name) { this->report_ap_name_ = ap_name; }
+  void set_report_ap_name(const char* ap_name) { this->report_ap_name_ = ap_name; }
 
 #ifdef USE_TIME
   void set_time_id(time::RealTimeClock *time_id) { this->time_id_ = time_id; }
@@ -133,7 +134,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void set_integer_datapoint_value(uint8_t datapoint_id, uint32_t value){
     set_datapoint_value(UyatDatapoint{datapoint_id, UIntDatapointValue{value}}, false);
   }
-  void set_string_datapoint_value(uint8_t datapoint_id, const std::string &value){
+  void set_string_datapoint_value(uint8_t datapoint_id, const char* value){
     set_datapoint_value(UyatDatapoint{datapoint_id, StringDatapointValue{value}}, false);
   }
   void set_enum_datapoint_value(uint8_t datapoint_id, uint8_t value){
@@ -148,7 +149,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void force_set_integer_datapoint_value(uint8_t datapoint_id, uint32_t value){
     set_datapoint_value(UyatDatapoint{datapoint_id, UIntDatapointValue{value}}, true);
   }
-  void force_set_string_datapoint_value(uint8_t datapoint_id, const std::string &value){
+  void force_set_string_datapoint_value(uint8_t datapoint_id, const char* value){
     set_datapoint_value(UyatDatapoint{datapoint_id, StringDatapointValue{value}}, true);
   }
   void force_set_enum_datapoint_value(uint8_t datapoint_id, uint8_t value){
@@ -176,7 +177,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void report_wifi_connected_or_retry_(const uint32_t delay_ms);
   void report_cloud_connected_();
   void query_product_info_with_retries_();
-  std::string process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
+  StaticString process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
   void schedule_heartbeat_(const bool initial);
   void stop_heartbeats_();
 
@@ -184,7 +185,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void update_pairing_mode_sensor_();
 #endif
 
-  std::string report_ap_name_ = "smartlife";
+  StaticString report_ap_name_ = "smartlife";
 #ifdef USE_TIME
   void send_local_time_();
   time::RealTimeClock *time_id_{nullptr};
@@ -200,7 +201,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   int reset_pin_reported_ = -1;
   uint32_t last_command_timestamp_ = 0;
   uint32_t last_rx_char_timestamp_ = 0;
-  std::string product_ = "";
+  StaticString product_ = "";
   std::vector<UyatDatapointListener> listeners_;
   std::vector<UyatDatapoint> cached_datapoints_;
   std::deque<uint8_t> rx_message_;

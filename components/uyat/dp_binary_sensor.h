@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "uyat_datapoint_types.h"
+#include "uyat_string.hpp"
 
 namespace esphome::uyat
 {
@@ -19,12 +20,12 @@ struct DpBinarySensor
       const std::optional<uint8_t> bit_number;
       const bool inverted;
 
-      std::string to_string() const
+      StaticString to_string() const
       {
-         return str_sprintf("%s%s%s",
+         return StringHelpers::sprintf("%s%s%s",
             inverted? "Inverted " : "",
             matching_dp.to_string().c_str(),
-            bit_number? str_sprintf(", bit %u", bit_number.value()).c_str() : ", whole"  );
+            bit_number? StringHelpers::sprintf(", bit %u", bit_number.value()).c_str() : ", whole"  );
       }
    };
 

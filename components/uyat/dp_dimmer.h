@@ -2,6 +2,7 @@
 
 #include "uyat_datapoint_types.h"
 #include "dp_number.h"
+#include "uyat_string.hpp"
 
 #include <optional>
 #include <cstdint>
@@ -22,9 +23,9 @@ struct DpDimmer
       const uint32_t max_value;
       const bool inverted;
 
-      std::string to_string() const
+      StaticString to_string() const
       {
-         return str_sprintf("%s, [%u, %u]%s", matching_dp.to_string().c_str(), min_value, max_value, inverted? " inverted":"");
+         return StringHelpers::sprintf("%s, [%u, %u]%s", matching_dp.to_string().c_str(), min_value, max_value, inverted? " inverted":"");
       }
    };
 

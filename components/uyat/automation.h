@@ -36,7 +36,7 @@ class UyatUIntDatapointUpdateTrigger : public Trigger<uint32_t> {
   explicit UyatUIntDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id);
 };
 
-class UyatStringDatapointUpdateTrigger : public Trigger<std::string> {
+class UyatStringDatapointUpdateTrigger : public Trigger<StaticString> {
  public:
   explicit UyatStringDatapointUpdateTrigger(Uyat *parent, uint8_t sensor_id);
 };

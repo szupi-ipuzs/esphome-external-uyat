@@ -8,7 +8,7 @@ namespace uyat {
 
 UyatTextSensor::UyatTextSensor(Uyat *parent, Config config):
 parent_(*parent),
-dp_text_([this](const std::string& value){this->on_value(value);},
+dp_text_([this](const StaticString& value){this->on_value(value);},
           std::move(config.matching_dp),
           config.encoding)
 {}
@@ -22,10 +22,10 @@ void UyatTextSensor::dump_config() {
   ESP_LOGCONFIG(UyatTextSensor::TAG, "  Text Sensor %s is %s", get_name().c_str(), this->dp_text_.get_config().to_string().c_str());
 }
 
-void UyatTextSensor::on_value(const std::string& value)
+void UyatTextSensor::on_value(const StaticString& value)
 {
   ESP_LOGV(UyatTextSensor::TAG, "MCU reported %s is: %s", get_name().c_str(), value.c_str());
-  this->publish_state(value);
+  this->publish_state(value.c_str());
 }
 
 }  // namespace uyat

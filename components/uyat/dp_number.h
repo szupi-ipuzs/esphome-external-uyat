@@ -3,6 +3,7 @@
 #include <functional>
 
 #include "uyat_datapoint_types.h"
+#include "uyat_string.hpp"
 
 namespace esphome::uyat
 {
@@ -19,9 +20,9 @@ struct DpNumber
       const float offset;
       const float multiplier;
 
-      std::string to_string() const
+      StaticString to_string() const
       {
-         return str_sprintf("%s, offset=%.2f, multiplier=%.2f", matching_dp.to_string().c_str(), offset, multiplier);
+         return StringHelpers::sprintf("%s, offset=%.2f, multiplier=%.2f", matching_dp.to_string().c_str(), offset, multiplier);
       }
    };
 

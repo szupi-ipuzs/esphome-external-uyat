@@ -8,8 +8,8 @@
 namespace esphome::uyat
 {
 
-static constexpr const std::size_t MAX_STRING_BUFFER_SIZE = 1024u * 5u;
-static constexpr const std::size_t MAX_STRING_BUFFER_SLOTS = 500u;
+static constexpr const std::size_t MAX_STRING_BUFFER_SIZE = 1024u * 2u;
+static constexpr const std::size_t MAX_STRING_BUFFER_SLOTS = 20u;
 
 struct StringMemoryPool
 {

@@ -85,7 +85,7 @@ void Uyat::loop() {
   {
     uint8_t c;
     this->read_byte(&c);
-    this->rx_message_.push_back(c);
+    this->rx_message_.buffer_.push_back(c);
     this->last_rx_char_timestamp_ = millis();
     if (now >= (start_ts + UART_MAX_POLL_TIME_MS))
     {
@@ -131,36 +131,37 @@ void Uyat::dump_config() {
 
 std::size_t Uyat::validate_message_() {
 
-  const auto current_size = this->rx_message_.size();
-  if (current_size < (2u + 1u + 1u + 2u + 1u)) // header + version + command + length + checksum
+  const auto view = this->rx_message_.create_view();
+
+  if (view.size_ < (2u + 1u + 1u + 2u + 1u)) // header + version + command + length + checksum
   {
     return 0u;  // don't remove anything yet
   }
 
-  if (this->rx_message_.at(0u) != 0x55)
+  if (view.byte_at(0u) != 0x55)
   {
     return 1u;
   }
 
-  if (this->rx_message_.at(1u) != 0xAA)
+  if (view.byte_at(1u) != 0xAA)
   {
     return 1u;  // remove just the first 0x55, in case it is followed by another 0x55
   }
 
-  const uint8_t version = this->rx_message_.at(2u);
-  const uint8_t command = this->rx_message_.at(3u);
-  const uint16_t length = (uint16_t(this->rx_message_.at(4u)) << 8) | (uint16_t(this->rx_message_.at(5u)));
+  const uint8_t version = view.byte_at(2u);
+  const uint8_t command = view.byte_at(3u);
+  const uint16_t length = (uint16_t(view.byte_at(4u)) << 8) | (uint16_t(view.byte_at(5u)));
   const auto checksum_offset = 6u + length;
-  if ((checksum_offset + 1u) > current_size)  // offset of data field + length + checksum
+  if ((checksum_offset + 1u) > view.size_)  // offset of data field + length + checksum
   {
     return 0u;
   }
 
   // Byte 6+LEN: CHECKSUM - sum of all bytes (including header) modulo 256
-  const uint8_t rx_checksum = this->rx_message_.at(checksum_offset);
+  const uint8_t rx_checksum = view.byte_at(checksum_offset);
   uint8_t calc_checksum = 0;
   for (std::size_t i = 0; i < checksum_offset; ++i)
-    calc_checksum += this->rx_message_.at(i);
+    calc_checksum += view.byte_at(i);
 
   if (rx_checksum != calc_checksum) {
     ESP_LOGW(TAG, "Received invalid message checksum %02X!=%02X",
@@ -174,7 +175,7 @@ std::size_t Uyat::validate_message_() {
   ESP_LOGV(TAG, "Received Uyat: CMD=0x%02X VERSION=%u LEN=%zu INIT_STATE=%u",
            command, version, data_len,
            static_cast<uint8_t>(this->init_state_));
-  this->handle_command_(command, version, this->rx_message_, data_offset, data_len);
+  this->handle_command_(command, version, this->rx_message_.create_view(data_offset, data_len));
 
   // the whole message can now be removed
   return (checksum_offset + 1u);
@@ -188,11 +189,11 @@ void Uyat::handle_input_buffer_() {
     {
       break;
     }
-    if (bytes_to_remove > this->rx_message_.size()) // just for safety, in case the validate_message_() is buggy
+    if (bytes_to_remove > this->rx_message_.buffer_.size()) // just for safety, in case the validate_message_() is buggy
     {
       ESP_LOGW(TAG, "BUG: tryng to remove more bytes than possible %zu > %zu",
-        bytes_to_remove, this->rx_message_.size());
-      bytes_to_remove = this->rx_message_.size();
+        bytes_to_remove, this->rx_message_.buffer_.size());
+      bytes_to_remove = this->rx_message_.buffer_.size();
     }
 
 #ifdef UYAT_DIAGNOSTICS_ENABLED
@@ -201,13 +202,12 @@ void Uyat::handle_input_buffer_() {
       this->num_garbage_bytes_ += bytes_to_remove;
     }
 #endif
-    this->rx_message_.erase(this->rx_message_.begin(), this->rx_message_.begin() + bytes_to_remove);
-  } while ((this->command_queue_.empty()) && (!this->rx_message_.empty()));  // stop if there's message to be sent or no input
+    this->rx_message_.buffer_.erase(this->rx_message_.buffer_.begin(), this->rx_message_.buffer_.begin() + bytes_to_remove);
+  } while ((this->command_queue_.empty()) && (!this->rx_message_.buffer_.empty()));  // stop if there's message to be sent or no input
 }
 
 void Uyat::handle_command_(uint8_t command, uint8_t version,
-                           const std::deque<uint8_t> &buffer,
-                           size_t offset, size_t len) {
+                           const StaticDeque::DequeView &view) {
   UyatCommandType command_type = (UyatCommandType)command;
 
   if (this->expected_response_.has_value() &&
@@ -219,9 +219,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
 
   switch (command_type) {
   case UyatCommandType::HEARTBEAT:
-    ESP_LOGV(TAG, "MCU Heartbeat (0x%02X)", this->byte_at_(buffer, offset, 0));
+    ESP_LOGV(TAG, "MCU Heartbeat (0x%02X)", view.byte_at(0));
     this->protocol_version_ = version;
-    if (this->byte_at_(buffer, offset, 0) == 0) {
+    if (view.byte_at(0) == 0) {
       ESP_LOGI(TAG, "MCU restarted");
     }
     schedule_heartbeat_(false);
@@ -233,14 +233,14 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
   case UyatCommandType::PRODUCT_QUERY: {
     // check it is a valid string made up of printable characters
     bool valid = true;
-    for (size_t i = 0; i < len; i++) {
-      if (!std::isprint(this->byte_at_(buffer, offset, i))) {
+    for (size_t i = 0; i < view.size_; i++) {
+      if (!std::isprint(view.byte_at(i))) {
         valid = false;
         break;
       }
     }
     if (valid) {
-      this->product_ = StaticString(buffer.begin() + offset, buffer.begin() + offset + len);
+      this->product_ = StaticString(view.cbegin(), view.cend());
 #ifdef UYAT_DIAGNOSTICS_ENABLED
       if (this->product_text_sensor_)
       {
@@ -258,9 +258,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     break;
   }
   case UyatCommandType::CONF_QUERY: {
-    if (len >= 2) {
-      this->status_pin_reported_ = this->byte_at_(buffer, offset, 0);
-      this->reset_pin_reported_ = this->byte_at_(buffer, offset, 1);
+    if (view.size_ >= 2) {
+      this->status_pin_reported_ = view.byte_at(0);
+      this->reset_pin_reported_ = view.byte_at(1);
     }
     if (this->init_state_ == UyatInitState::INIT_CONF) {
       // If mcu returned status gpio, then we can omit sending wifi state
@@ -351,9 +351,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
   }
   case UyatCommandType::WIFI_SELECT: {
       ESP_LOGI(TAG, "WIFI_SELECT");
-      if (len > 0)
+      if (view.size_ > 0)
       {
-        this->requested_wifi_config_is_ap_ = (this->byte_at_(buffer, offset, 0) == 0x01);
+        this->requested_wifi_config_is_ap_ = (view.byte_at(0) == 0x01);
       }
       else
       {
@@ -380,7 +380,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
                         [this] { this->dump_config(); });
       this->initialized_callback_.call();
     }
-    this->handle_datapoints_(buffer, offset, len);
+    this->handle_datapoints_(view);
 
     if (command_type == UyatCommandType::DATAPOINT_REPORT_SYNC) {
       this->send_command_(
@@ -447,7 +447,7 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
     break;
   }
   case UyatCommandType::EXTENDED_SERVICES: {
-    uint8_t subcommand = this->byte_at_(buffer, offset, 0);
+    uint8_t subcommand = view.byte_at(0);
     switch ((UyatExtendedServicesCommandType)subcommand) {
     case UyatExtendedServicesCommandType::RESET_NOTIFICATION: {
       this->send_command_(UyatCommand{
@@ -472,9 +472,9 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
       StaticString module_info_str;
       response_payload.push_back(static_cast<uint8_t>(
                   UyatExtendedServicesCommandType::GET_MODULE_INFORMATION));
-      if (len >= 2)
+      if (view.size_ >= 2)
       {
-        module_info_str = process_get_module_information_(buffer, offset + 1, len - 1);
+        module_info_str = process_get_module_information_(view.create_view(1u, view.size_ - 1u));
       }
 
       if (module_info_str.empty())
@@ -511,10 +511,12 @@ void Uyat::handle_command_(uint8_t command, uint8_t version,
   }
 }
 
-void Uyat::handle_datapoints_(const std::deque<uint8_t> &buffer, size_t offset, size_t len) {
+void Uyat::handle_datapoints_(const StaticDeque::DequeView &buffer) {
+  auto len = buffer.size_;
+  auto offset = 0;
   while (len >= 4) {
     std::size_t used_len = 0u;
-    auto datapoint = UyatDatapoint::construct(buffer, offset, len, used_len);
+    auto datapoint = UyatDatapoint::construct(buffer.create_view(offset, len), used_len);
     if (used_len == 0u)
     {
       used_len = len;
@@ -618,7 +620,7 @@ void Uyat::process_command_queue_() {
   uint32_t delay = now - this->last_command_timestamp_;
 
   if (now - this->last_rx_char_timestamp_ > RECEIVE_TIMEOUT) {
-    this->rx_message_.clear();
+    this->rx_message_.buffer_.clear();
   }
 
   if (this->expected_response_.has_value() && delay > RECEIVE_TIMEOUT) {
@@ -639,7 +641,7 @@ void Uyat::process_command_queue_() {
   // Left check of delay since last command in case there's ever a command sent
   // by calling send_raw_command_ directly
   if (delay > COMMAND_DELAY && !this->command_queue_.empty() &&
-      this->rx_message_.empty() && !this->expected_response_.has_value()) {
+      this->rx_message_.buffer_.empty() && !this->expected_response_.has_value()) {
     this->send_raw_command_(command_queue_.front());
     if (!this->expected_response_.has_value())
       this->command_queue_.erase(command_queue_.begin());
@@ -816,19 +818,19 @@ void Uyat::query_product_info_with_retries_()
     });
 }
 
-StaticString Uyat::process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len)
+StaticString Uyat::process_get_module_information_(const StaticDeque::DequeView &view)
 {
   // By default, we return an empty string indicating failure
   bool want_ssid = false;
   bool want_country_code = false;
   bool want_sn = false;
 
-  if (len == 0)
+  if (view.size_ == 0)
   {
     return {};
   }
 
-  if (buffer[offset] == 0xFF) // special case: get all information
+  if (view.byte_at(0) == 0xFF) // special case: get all information
   {
     want_ssid = true;
     want_country_code = true;
@@ -836,9 +838,9 @@ StaticString Uyat::process_get_module_information_(const std::deque<uint8_t> &bu
   }
   else
   {
-    for (size_t i = 0; i < len; i++)
+    for (size_t i = 0; i < view.size_; ++i)
     {
-      switch (buffer[offset + i])
+      switch (view.byte_at(i))
       {
         case 0x01:
           want_ssid = true;
@@ -851,7 +853,7 @@ StaticString Uyat::process_get_module_information_(const std::deque<uint8_t> &bu
           break;
         default:
           ESP_LOGW(TAG, "Unknown GET_MODULE_INFORMATION request field 0x%02X",
-                   buffer[offset + i]);
+                   view.byte_at(i));
       }
     }
   }

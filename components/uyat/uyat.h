@@ -12,6 +12,7 @@
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "uyat_string.hpp"
+#include "uyat_deque.hpp"
 
 #ifdef USE_TIME
 #include "esphome/components/time/real_time_clock.h"
@@ -158,13 +159,12 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
 
  protected:
   void handle_input_buffer_();
-  void handle_datapoints_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
+  void handle_datapoints_(const StaticDeque::DequeView &buffer);
   optional<UyatDatapoint> get_datapoint_(uint8_t datapoint_id);
   // returns number of bytes to remove from the beginning of rx buffer
   std::size_t validate_message_();
 
-  void handle_command_(uint8_t command, uint8_t version, const std::deque<uint8_t> &buffer,
-                       size_t offset, size_t len);
+  void handle_command_(uint8_t command, uint8_t version, const StaticDeque::DequeView &view);
   void send_raw_command_(UyatCommand command);
   void process_command_queue_();
   void send_command_(const UyatCommand &command);
@@ -177,7 +177,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   void report_wifi_connected_or_retry_(const uint32_t delay_ms);
   void report_cloud_connected_();
   void query_product_info_with_retries_();
-  StaticString process_get_module_information_(const std::deque<uint8_t> &buffer, size_t offset, size_t len);
+  StaticString process_get_module_information_(const StaticDeque::DequeView &view);
   void schedule_heartbeat_(const bool initial);
   void stop_heartbeats_();
 
@@ -204,7 +204,7 @@ class Uyat : public Component, public uart::UARTDevice, public DatapointHandler 
   StaticString product_ = "";
   std::vector<UyatDatapointListener> listeners_;
   std::vector<UyatDatapoint> cached_datapoints_;
-  std::deque<uint8_t> rx_message_;
+  StaticDeque rx_message_;
   std::vector<uint8_t> ignore_mcu_update_on_datapoints_{};
   std::vector<UyatCommand> command_queue_;
   optional<UyatCommandType> expected_response_{};

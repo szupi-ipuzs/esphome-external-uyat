@@ -12,6 +12,14 @@ namespace sma
 
 struct StaticMemoryAllocator
 {
+   struct Stats
+   {
+      std::size_t peak_allocated_size = 0;
+      std::size_t peak_occupied_free_slots = 0;
+      std::size_t peak_occupied_used_slots = 0;
+      std::size_t smallest_max_chunk = 0;
+   };
+
    explicit StaticMemoryAllocator(std::span<uint8_t> buffer, const std::size_t max_slots):
    buffer_(buffer),
    occupied_slots_(max_slots),
@@ -25,6 +33,11 @@ struct StaticMemoryAllocator
 
    StaticMemoryAllocator(StaticMemoryAllocator&&) = default;
    StaticMemoryAllocator& operator=(StaticMemoryAllocator&&) = default;
+
+   const Stats& get_stats() const
+   {
+      return stats_;
+   }
 
    std::size_t max_size() const
    {
@@ -90,6 +103,7 @@ struct StaticMemoryAllocator
       {
          selected_free_slot.used = 0;
       }
+      update_stats();
       return &buffer_[occupied_slot.offset];
    }
 
@@ -115,6 +129,8 @@ struct StaticMemoryAllocator
 
       // merge free slots if needed
       merge_free_slots();
+
+      update_stats();
    }
 
 private:
@@ -248,11 +264,63 @@ private:
       }
    }
 
+   std::size_t get_total_used_slots(const std::vector<Slot>& slots) const
+   {
+      std::size_t result = 0;
+
+      for (auto & slot: slots)
+      {
+         if (slot.used)
+         {
+            ++result;
+         }
+      }
+
+      return result;
+   }
+
+   void update_stats()
+   {
+      {
+         const auto allocated_size = total_occupied();
+         if (stats_.peak_allocated_size < allocated_size)
+         {
+            stats_.peak_allocated_size = allocated_size;
+         }
+      }
+
+      {
+         const auto occupied_slots = get_total_used_slots(occupied_slots_);
+         if (stats_.peak_occupied_used_slots < occupied_slots)
+         {
+            stats_.peak_occupied_used_slots = occupied_slots;
+         }
+      }
+
+      {
+         const auto free_slots = get_total_used_slots(free_slots_);
+         if (stats_.peak_occupied_free_slots < free_slots)
+         {
+            stats_.peak_occupied_free_slots = free_slots;
+         }
+      }
+
+      {
+         const auto max_chunk = max_size();
+         if ((0u == stats_.smallest_max_chunk) || (stats_.smallest_max_chunk > max_chunk))
+         {
+            stats_.smallest_max_chunk = max_chunk;
+         }
+      }
+   }
+
    std::span<uint8_t> buffer_;
 
    // used memory slots
    std::vector<Slot> occupied_slots_;
    std::vector<Slot> free_slots_;
+
+   Stats stats_{};
 };
 
 }
